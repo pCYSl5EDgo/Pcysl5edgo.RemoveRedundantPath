@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="PathInternal.windows.cs" />
+		<Compile Remove="RedundantSegmentHelper.windows.cs" />
+		<PackageReference Include="BenchmarkDotNet" Version="0.15.2" />
+		<PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.0.36313.1" />
+		<ProjectReference Include="..\Pcysl5edgo.RedudantPath\Pcysl5edgo.RedudantPath.csproj" />
+	</ItemGroup>
+</Project>

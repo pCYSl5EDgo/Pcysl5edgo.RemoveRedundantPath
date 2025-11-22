@@ -1,0 +1,8 @@
+<Solution>
+    <Folder Name="/ソリューション項目/">
+        <File Path="Directory.build.props" />
+    </Folder>
+    <Project Path="Pcysl5edgo.RedudantPath.Tests/Pcysl5edgo.RedudantPath.Tests.csproj" Id="cd00220b-6e40-48d8-b978-d37a1b40918b" />
+    <Project Path="Pcysl5edgo.RedudantPath/Pcysl5edgo.RedudantPath.csproj" Id="d4a91810-a7fc-44a8-be19-9ec062a1d738" />
+    <Project Path="Pcysl5edgo.RemoveRedundantPath.Benchmark/Pcysl5edgo.RemoveRedundantPath.Benchmark.csproj" />
+</Solution>

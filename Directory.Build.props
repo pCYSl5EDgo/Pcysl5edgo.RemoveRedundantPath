@@ -1,0 +1,7 @@
+<Project>
+	<PropertyGroup>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<Deterministic>true</Deterministic>
+	</PropertyGroup>
+</Project>
