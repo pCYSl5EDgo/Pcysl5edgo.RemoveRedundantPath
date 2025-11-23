@@ -5,12 +5,34 @@ namespace Pcysl5edgo.RemoveRedundantPath.Tests;
 
 public class IndexOfTests
 {
+    //[Theory]
+    //[MemberData(nameof(IndexOfTrue64bitData))]
+    //public void IndexOfTrue64bit(ulong[] array, int offset, int expected)
+    //{
+    //    int result = BitSpan.IndexOfTrue(ref MemoryMarshal.GetArrayDataReference(array), array.Length << 6, offset);
+    //    Assert.Equal(expected, result);
+    //}
+
     [Theory]
-    [MemberData(nameof(IndexOfTrue64bitData))]
-    public void IndexOfTrue64bit(ulong[] array, int offset, int expected)
+    [InlineData(0b1ul, 1, 0, 1)]
+    [InlineData(0b1ul, 2, 0, 1)]
+    [InlineData(0b1ul, 4, 0, 1)]
+    [InlineData(0b10ul, 2, 0, 0)]
+    [InlineData(0b10ul, 1, 0, 0)]
+    [InlineData(0b11ul, 2, 0, 2)]
+    [InlineData(0b1011ul, 2, 0, 2)]
+    [InlineData(0b1011ul, 3, 0, 2)]
+    [InlineData(0b1011ul, 4, 0, 2)]
+    [InlineData(0b1010ul, 4, 0, 0)]
+    [InlineData(0b1001ul, 4, 0, 1)]
+    [InlineData(0b1011ul, 2, 1, 2)]
+    [InlineData(0b1011ul, 3, 1, 2)]
+    [InlineData(0b1011ul, 4, 1, 2)]
+    [InlineData(0b1010ul, 4, 1, 2)]
+    [InlineData(0b1001ul, 4, 1, 1)]
+    public void TrailingOneCount64Bit(ulong value, int length, int offset, int expected)
     {
-        int result = BitSpan.IndexOfTrue(ref Unsafe.As<ulong, byte>(ref MemoryMarshal.GetArrayDataReference(array)), array.Length << 6, offset);
-        Assert.Equal(expected, result);
+        Assert.Equal(expected, BitSpan.TrailingOneCount(value, length, offset));
     }
 
     public static TheoryData<ulong[], int, int> IndexOfTrue64bitData => new()

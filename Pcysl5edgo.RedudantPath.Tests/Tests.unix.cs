@@ -8,7 +8,8 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
     [MemberData(nameof(TestPaths_Unix))]
     public void UnixSimdSpanTest(string original, string expected)
     {
-        Assert.Equal(expected, SimdPath.RemoveRedundantSegmentsSpan(original));
+        var actual = SimdPath.RemoveRedundantSegmentsSpan(original);
+        Assert.Equal(expected, actual);
     }
 
     #endregion
