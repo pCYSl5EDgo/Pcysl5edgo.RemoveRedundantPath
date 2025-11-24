@@ -1,0 +1,36 @@
+name: Run Benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "master" ]
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build -c Release
+
+      - name: Run BenchmarkDotNet
+        run: |
+          dotnet run -c Release --project Pcysl5edgo.RemoveRedundantPath.Benchmark/Pcysl5edgo.RemoveRedundantPath.Benchmark.csproj
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            **/BenchmarkDotNet.Artifacts/**
+          retention-days: 7
