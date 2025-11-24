@@ -23,155 +23,520 @@ public static class SimdPath
         }
 
         var span = path.AsSpan();
-        if (span.Length <= 64)
+        ref var textRef = ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span));
+        return span.Length switch
         {
-            return ImplLTE64(path, ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span)));
+            <= 64 => ImplLTE64(ref textRef, path.Length),
+            <= 128 => ImplGT64LTE128(ref textRef, path.Length),
+            _ => ImplGT128(ref textRef, path.Length),
+        } ?? path;
+    }
+
+    private static string? ImplLTE64(ref ushort text, int textLength)
+    {
+        InitializeSeparatorDot(ref text, textLength, out var separator, out var dot);
+        if (separator == default)
+        {
+            return default;
+        }
+
+        var separatorWithBitWall = separator | ((ulong.MaxValue >>> textLength) << textLength);
+        // /./ or /.$ or ^./ or ^.$
+        var current = ((separator << 1) | 1ul) & dot & (separatorWithBitWall >>> 1);
+        // /../ or /..$ or ^../ or ^..$
+        var parent = ((separator << 1) | 1ul) & dot & (dot >>> 1) & (separatorWithBitWall >>> 2);
+        var _ = (stackalloc int[(CountAloneSeparator(separator) + 1) << 1]);
+        var info = new UnixInfo(ref text, textLength, _);
+        if (info.StartsWithSeparator)
+        {
+            info.Offset = BitSpan.TrailingOneCount(separator, info.Offset);
+        }
+
+        var cp = current | parent;
+        while (info.IsInRange)
+        {
+            if (BitSpan.GetBit(cp, info.Offset))
+            {
+                if (BitSpan.GetBit(current, info.Offset))
+                {
+                    if (info.Offset + 1 < textLength)
+                    {
+                        info.TryAddCurrentSegment();
+                        info.Offset += 2;
+                    }
+                    else
+                    {
+                        if (info.IsSegmentEmpty)
+                        {
+                            return ".";
+                        }
+
+                        info.EndsWithSeparator = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (info.Offset + 2 < textLength)
+                    {
+                        info.TryAddParentSegment();
+                        info.Offset += 3;
+                    }
+                    else
+                    {
+                        if (info.IsSegmentEmpty)
+                        {
+                            return "..";
+                        }
+
+                        info.EndsWithSeparator = false;
+                        info.TryAddParentSegment();
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                var foundIndex = BitOperations.TrailingZeroCount(separator >>> info.Offset) + info.Offset;
+                if (foundIndex < 64)
+                {
+                    info.AddNormalSegment(foundIndex - info.Offset);
+                    info.Offset = foundIndex + 1;
+                }
+                else
+                {
+                    info.AddNormalSegment(textLength - info.Offset);
+                    info.EndsWithSeparator = false;
+                    break;
+                }
+            }
+
+            info.Offset = BitSpan.TrailingOneCount(separator, info.Offset);
+        }
+
+        return info.CreateOrNull();
+    }
+
+    private static int CountAloneSeparator(ulong separator) => BitOperations.PopCount(separator & ~(separator & (separator << 1)));
+
+    private static int CountAloneSeparator(ulong oldSeparator, ulong separator) => BitOperations.PopCount(separator & ~(separator & ((separator << 1) | (oldSeparator >>> 63))));
+
+    /// <summary>
+    /// Calculates the combined bitmask representing the current and parent elements based on separator and dot values.
+    /// </summary>
+    /// <param name="oldSeparator">The previous separator value used to determine bit alignment with the current separator.</param>
+    /// <param name="currentSeparator">The separator value for the current element, influencing the calculation of current and parent bitmasks.</param>
+    /// <param name="nextSeparator">The separator value for the next element, used to compute bit relationships with the current separator.</param>
+    /// <param name="currentDot">The dot value for the current element, representing its bitmask in the calculation.</param>
+    /// <param name="nextDot">The dot value for the next element, affecting the determination of parent bitmasks.</param>
+    /// <param name="current">When this method returns, contains the bitmask representing the current element, as computed from the provided
+    /// parameters.</param>
+    /// <returns>A bitmask value that combines the current and parent elements based on the input separator and dot values.</returns>
+    private static ulong CalculateCurrentParent(ulong oldSeparator, ulong currentSeparator, ulong nextSeparator, ulong currentDot, ulong nextDot, out ulong current)
+    {
+        var shiftedSeparator = (currentSeparator << 1) | (oldSeparator >>> 63);
+        current = shiftedSeparator & currentDot & ((currentSeparator >>> 1) | (nextSeparator << 63));
+        var parent = shiftedSeparator & currentDot & ((currentDot >>> 1) | (nextDot << 63)) & ((currentSeparator >>> 2) | (nextSeparator << 62));
+        return current | parent;
+    }
+
+    /// <summary>
+    /// Calculates the combined bitmask representing the last and current parent positions based on the provided separator and dot masks.
+    /// </summary>
+    /// <param name="oldSeparator">The previous separator bitmask used to determine parent relationships.</param>
+    /// <param name="currentSeparatorWithWall">The current separator bitmask, including wall information, used to identify boundaries.</param>
+    /// <param name="currentDot">The bitmask representing the current dot positions to be evaluated.</param>
+    /// <param name="current">When this method returns, contains the bitmask of the current parent positions calculated from the input masks.</param>
+    /// <returns>A bitmask representing the union of the last and current parent positions derived from the input masks.</returns>
+    private static ulong CalculateLastCurrentParent(ulong oldSeparator, ulong currentSeparatorWithWall, ulong currentDot, out ulong current)
+    {
+        var shiftedSeparator = (currentSeparatorWithWall << 1) | (oldSeparator >>> 63);
+        current = shiftedSeparator & currentDot & (currentSeparatorWithWall >>> 1);
+        var parent = shiftedSeparator & currentDot & (currentDot >>> 1) & (currentSeparatorWithWall >>> 2);
+        return current | parent;
+    }
+
+    private static string? ImplGT64LTE128(ref ushort text, int textLength)
+    {
+        var lastLength = textLength & 63;
+        var separatorSpan = (stackalloc ulong[4]);
+        InitializeSeparatorDot(ref text, out var separatorNow, out var dotNow);
+        InitializeSeparatorDot(ref Unsafe.Add(ref text, 64), lastLength, out var separatorNext, out var dotNext);
+        if ((separatorNow | separatorNext) == default)
+        {
+            return default;
+        }
+
+        var separatorWithWall = separatorNext | ((ulong.MaxValue >>> lastLength) << lastLength);
+        var cp = CalculateCurrentParent(ulong.MaxValue, separatorNow, separatorWithWall, dotNow, dotNext, out var currentNow);
+
+        var _ = (stackalloc int[(CountAloneSeparator(separatorNow) + CountAloneSeparator(separatorNow, separatorNext) + 1) << 1]);
+        var info = new UnixInfo(ref text, textLength, _);
+        if (info.StartsWithSeparator)
+        {
+            info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset);
+            if (info.Offset == 64)
+            {
+                info.Offset = BitSpan.TrailingOneCount(separatorNext, lastLength, 0) + 64;
+            }
+        }
+
+        var segmentContinue = false;
+        while (info.Offset < 64)
+        {
+            if (BitSpan.GetBit(cp, info.Offset))
+            {
+                if (BitSpan.GetBit(currentNow, info.Offset))
+                {
+                    info.TryAddCurrentSegment();
+                    info.Offset += 2;
+                }
+                else
+                {
+                    info.TryAddParentSegment();
+                    info.Offset += 3;
+                }
+
+                info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset);
+            }
+            else
+            {
+                var foundIndex = BitOperations.TrailingZeroCount(separatorNow >>> info.Offset) + info.Offset;
+                info.AddNormalSegment(foundIndex - info.Offset);
+                if (foundIndex < 64)
+                {
+                    info.Offset = BitSpan.TrailingOneCount(separatorNow, foundIndex + 1);
+                }
+                else
+                {
+                    segmentContinue = true;
+                    break;
+                }
+            }
+        }
+
+        if (segmentContinue)
+        {
+            segmentContinue = false;
+            var foundIndex = BitOperations.TrailingZeroCount(separatorNext);
+            if (foundIndex < 64)
+            {
+                info.Offset = foundIndex + 64 + 1;
+                info.SetLastSegmentEndExclusive(info.Offset - 1);
+            }
+            else
+            {
+                info.Offset = textLength;
+                info.SetLastSegmentEndExclusive(textLength);
+            }
+        }
+
+        cp = CalculateLastCurrentParent(separatorNow, separatorWithWall, dotNext, out var currentNext);
+        while (info.Offset < textLength)
+        {
+            if (BitSpan.GetBit(cp, info.Offset))
+            {
+                if (BitSpan.GetBit(currentNext, info.Offset))
+                {
+                    if (info.Offset + 1 < textLength)
+                    {
+                        info.TryAddCurrentSegment();
+                        info.Offset += 2;
+                    }
+                    else
+                    {
+                        if (info.IsSegmentEmpty)
+                        {
+                            return ".";
+                        }
+
+                        info.EndsWithSeparator = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (info.Offset + 2 < textLength)
+                    {
+                        info.TryAddParentSegment();
+                        info.Offset += 3;
+                    }
+                    else
+                    {
+                        if (info.IsSegmentEmpty)
+                        {
+                            return "..";
+                        }
+
+                        info.EndsWithSeparator = false;
+                        break;
+                    }
+                }
+
+                info.Offset = BitSpan.TrailingOneCount(separatorNext, info.Offset & 63) + 64;
+            }
+            else
+            {
+                var foundIndex = BitOperations.TrailingZeroCount(separatorNext >>> (info.Offset & 63)) + info.Offset;
+                if (foundIndex < textLength)
+                {
+                    info.AddNormalSegment(foundIndex - info.Offset);
+                    info.Offset = BitSpan.TrailingOneCount(separatorNext, foundIndex - 63) + 64;
+                }
+                else
+                {
+                    info.AddNormalSegment(textLength - info.Offset);
+                    info.EndsWithSeparator = false;
+                    break;
+                }
+            }
+        }
+
+        return info.CreateOrNull();
+    }
+
+    private static string? ImplGT128(ref ushort text, int textLength)
+    {
+        var lastLength = textLength & 63;
+        InitializeSeparatorDot(ref text, out var separatorNow, out var dotNow);
+        var _ = (stackalloc int[CountAloneSeparator(separatorNow) + (textLength >>> 1) - 15]);
+        var info = new UnixInfo(ref text, textLength, _);
+        if (info.StartsWithSeparator)
+        {
+            info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset);
+        }
+
+        InitializeSeparatorDot(ref Unsafe.Add(ref text, 64), out var separatorNext, out var dotNext);
+        var cp = CalculateCurrentParent(ulong.MaxValue, separatorNow, separatorNext, dotNow, dotNext, out var current);
+        var segmentContinue = false;
+        while (info.Offset < 64)
+        {
+            if (BitSpan.GetBit(cp, info.Offset))
+            {
+                if (BitSpan.GetBit(current, info.Offset))
+                {
+                    info.TryAddCurrentSegment();
+                    info.Offset += 2;
+                }
+                else
+                {
+                    info.TryAddParentSegment();
+                    info.Offset += 3;
+                }
+
+                info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset);
+            }
+            else
+            {
+                var foundIndex = BitOperations.TrailingZeroCount(separatorNow >>> info.Offset) + info.Offset;
+                info.AddNormalSegment(foundIndex - info.Offset);
+                if (foundIndex < 64)
+                {
+                    info.Offset = BitSpan.TrailingOneCount(separatorNow, foundIndex + 1);
+                }
+                else
+                {
+                    segmentContinue = true;
+                    break;
+                }
+            }
+        }
+
+        var arrayLengthMinus1 = (textLength - 1) >> 6;
+        for (int arrayIndex = 1; arrayIndex < arrayLengthMinus1; ++arrayIndex)
+        {
+            var separatorOld = separatorNow;
+            separatorNow = separatorNext;
+            dotNow = dotNext;
+            InitializeSeparatorDot(ref Unsafe.Add(ref text, (arrayIndex + 1) << 6), out separatorNext, out dotNext);
+            if (segmentContinue)
+            {
+                var foundIndex = BitOperations.TrailingZeroCount(separatorNow);
+                if (foundIndex < 64)
+                {
+                    segmentContinue = false;
+                    info.Offset = foundIndex + (arrayIndex << 6) + 1;
+                    info.SetLastSegmentEndExclusive(info.Offset - 1);
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset & 63) + (arrayIndex << 6);
+            }
+
+            cp = CalculateCurrentParent(separatorOld, separatorNow, separatorNext | (arrayIndex + 1 == arrayLengthMinus1 ? ((ulong.MaxValue >>> lastLength) << lastLength) : 0ul), dotNow, dotNext, out current);
+            while (info.Offset < ((arrayIndex + 1) << 6))
+            {
+                if (BitSpan.GetBit(cp, info.Offset & 63))
+                {
+                    if (BitSpan.GetBit(current, info.Offset & 63))
+                    {
+                        info.TryAddCurrentSegment();
+                        info.Offset += 2;
+                    }
+                    else
+                    {
+                        info.TryAddParentSegment();
+                        info.Offset += 3;
+                    }
+
+                    info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset & 63) + (arrayIndex << 6);
+                }
+                else
+                {
+                    var length = BitOperations.TrailingZeroCount(separatorNow >>> (info.Offset & 63));
+                    info.AddNormalSegment(length);
+                    if (length < 64)
+                    {
+                        info.Offset = BitSpan.TrailingOneCount(separatorNow, length + 1 + (info.Offset & 63)) + (arrayIndex << 6);
+                    }
+                    else
+                    {
+                        segmentContinue = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (segmentContinue)
+        {
+            var foundIndex = BitOperations.TrailingZeroCount(separatorNext);
+            if (foundIndex < 64)
+            {
+                info.Offset = foundIndex + (arrayLengthMinus1 << 6);
+                info.SetLastSegmentEndExclusive(info.Offset - 1);
+            }
+            else
+            {
+                info.Offset = textLength;
+                info.SetLastSegmentEndExclusive(textLength);
+                info.EndsWithSeparator = true;
+            }
         }
         else
         {
-            return ImplGT64(path, ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span)));
-        }
-    }
-
-    private static string ImplLTE64(string path, ref ushort text)
-    {
-        var separator = InitializeSeparatorCurrentParent(ref text, path.Length, out var current, out var parent);
-        if (separator == default)
-        {
-            return path;
+            info.Offset = BitSpan.TrailingOneCount(separatorNext, info.Offset & 63) + (arrayLengthMinus1 << 6);
         }
 
-        var _ = (stackalloc int[(BitOperations.PopCount(separator) + 1) << 1]);
-        var info = new UnixInfo(path, _);
-        if (info.StartsWithSeparator)
-        {
-            info.Offset = BitSpan.TrailingOneCount(separator, 64, info.Offset);
-        }
-
+        cp = CalculateLastCurrentParent(separatorNow, separatorNext | ((ulong.MaxValue >>> lastLength) << lastLength), dotNext, out current);
         while (info.IsInRange)
         {
-            var foundIndex = BitOperations.TrailingZeroCount(separator >>> info.Offset) + info.Offset;
-            if (foundIndex >= 64)
+            if (BitSpan.GetBit(cp, info.Offset & 63))
             {
-                // separator not found
-                if (BitSpan.GetBit(current, info.Offset))
+                if (BitSpan.GetBit(current, info.Offset & 63))
                 {
-                    if (info.IsSegmentEmpty)
+                    if (info.Offset + 1 < textLength)
                     {
-                        return ".";
+                        info.TryAddCurrentSegment();
+                        info.Offset += 2;
                     }
-                }
-                else if (BitSpan.GetBit(parent, info.Offset))
-                {
-                    if (info.IsSegmentEmpty)
+                    else
                     {
-                        return "..";
-                    }
+                        if (info.IsSegmentEmpty)
+                        {
+                            return ".";
+                        }
 
-                    info.TryAddParentSegment();
+                        info.EndsWithSeparator = false;
+                        break;
+                    }
                 }
                 else
                 {
-                    info.AddNormalSegment(path.Length - info.Offset);
+                    if (info.Offset + 2 < textLength)
+                    {
+                        info.TryAddParentSegment();
+                        info.Offset += 3;
+                    }
+                    else
+                    {
+                        if (info.IsSegmentEmpty)
+                        {
+                            return "..";
+                        }
+
+                        info.EndsWithSeparator = false;
+                        break;
+                    }
                 }
 
-                info.EndsWithSeparator = false;
-                break;
+                info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset & 63) + (arrayLengthMinus1 << 6);
             }
             else
             {
-                if (BitSpan.GetBit(current, info.Offset))
+                var foundIndex = BitOperations.TrailingZeroCount(separatorNext >>> (info.Offset & 63)) + info.Offset;
+                if (foundIndex < textLength)
                 {
-                    info.TryAddCurrentSegment();
-                }
-                else if (BitSpan.GetBit(parent, info.Offset))
-                {
-                    info.TryAddParentSegment();
+                    info.AddNormalSegment(foundIndex - info.Offset);
+                    info.Offset = BitSpan.TrailingOneCount(separatorNext, foundIndex & 63) + (arrayLengthMinus1 << 6);
                 }
                 else
                 {
-                    info.AddNormalSegment(foundIndex - info.Offset);
+                    info.AddNormalSegment(textLength - info.Offset);
+                    info.EndsWithSeparator = false;
+                    break;
                 }
-
-                info.Offset = BitSpan.TrailingOneCount(separator, 64, foundIndex + 1);
             }
         }
 
-        return info.CreateOrAsIs(path);
+        return info.CreateOrNull();
     }
 
-    private static string ImplGT64(string path, ref ushort text)
+    private static void InitializeSeparatorDot(ref ushort text, out ulong separator, out ulong dot)
     {
-        var ulongCount = (path.Length + 63) >>> 6;
-        var __ = (stackalloc ulong[ulongCount * 3]);
-        ref var separatorRef = ref MemoryMarshal.GetReference(__);
-        ref var currentRef = ref Unsafe.Add(ref separatorRef, ulongCount);
-        ref var parentRef = ref Unsafe.Add(ref currentRef, ulongCount);
-        var maxSegmentCount = InitializeSeparatorCurrentParent(ref text, path.Length, ref separatorRef, ref currentRef, ref parentRef) + 1;
-        var _ = (stackalloc int[maxSegmentCount << 1]);
-        var info = new UnixInfo(path, _);
-        if (info.StartsWithSeparator)
+        ulong _separator = default, _dot = default;
+        int offset = default;
+        if (BitConverter.IsLittleEndian)
         {
-            info.Offset = BitSpan.TrailingOneCount(ref currentRef, path.Length, info.Offset);
-        }
-
-        while (info.IsInRange)
-        {
-            var foundIndex = BitSpan.TrailingZeroCount(ref separatorRef, path.Length, info.Offset);
-            if (foundIndex >= path.Length)
+            if (Vector256.IsHardwareAccelerated)
             {
-                // separator not found
-                if (BitSpan.GetBit(ref currentRef, info.Offset))
+                for (; offset < 64; offset += 32)
                 {
-                    if (info.IsSegmentEmpty)
-                    {
-                        return ".";
-                    }
+                    var v0 = Vector256.LoadUnsafe(ref text, (nuint)offset);
+                    var v1 = Vector256.LoadUnsafe(ref text, (nuint)(offset + 16));
+                    _separator |= ((ulong)Vector256.Narrow(Vector256.Equals(v0, Vector256.Create((ushort)'/')), Vector256.Equals(v1, Vector256.Create((ushort)'/'))).ExtractMostSignificantBits()) << offset;
+                    _dot |= ((ulong)Vector256.Narrow(Vector256.Equals(v0, Vector256.Create((ushort)'.')), Vector256.Equals(v1, Vector256.Create((ushort)'.'))).ExtractMostSignificantBits()) << offset;
                 }
-                else if (BitSpan.GetBit(ref parentRef, info.Offset))
-                {
-                    if (info.IsSegmentEmpty)
-                    {
-                        return "..";
-                    }
-
-                    info.TryAddParentSegment();
-                }
-                else
-                {
-                    info.AddNormalSegment(path.Length - info.Offset);
-                }
-
-                info.EndsWithSeparator = false;
-                break;
             }
-            else
+            else if (Vector128.IsHardwareAccelerated)
             {
-                if (BitSpan.GetBit(ref currentRef, info.Offset))
+                for (; offset < 64; offset += 16)
                 {
-                    info.TryAddCurrentSegment();
+                    var v0 = Vector128.LoadUnsafe(ref text, (nuint)offset);
+                    var v1 = Vector128.LoadUnsafe(ref text, (nuint)(offset + 8));
+                    _separator |= ((ulong)Vector128.Narrow(Vector128.Equals(v0, Vector128.Create((ushort)'/')), Vector128.Equals(v1, Vector128.Create((ushort)'/'))).ExtractMostSignificantBits()) << offset;
+                    _dot |= ((ulong)Vector128.Narrow(Vector128.Equals(v0, Vector128.Create((ushort)'.')), Vector128.Equals(v1, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits()) << offset;
                 }
-                else if (BitSpan.GetBit(ref parentRef, info.Offset))
-                {
-                    info.TryAddParentSegment();
-                }
-                else
-                {
-                    info.AddNormalSegment(foundIndex - info.Offset);
-                }
-
-                info.Offset = BitSpan.TrailingOneCount(ref separatorRef, 64, foundIndex + 1);
             }
         }
 
-        return info.CreateOrAsIs(path);
+        for (; offset < 64; ++offset)
+        {
+            switch (Unsafe.Add(ref text, offset))
+            {
+                case '/':
+                    _separator |= 1ul << offset;
+                    break;
+                case '.':
+                    _dot |= 1ul << offset;
+                    break;
+            }
+        }
+
+        separator = _separator;
+        dot = _dot;
     }
 
-    private static ulong InitializeSeparatorCurrentParent(ref ushort text, int textLength, out ulong current, out ulong parent)
+    private static void InitializeSeparatorDot(ref ushort text, int textLength, out ulong separator, out ulong dot)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(textLength, nameof(textLength));
         ArgumentOutOfRangeException.ThrowIfGreaterThan(textLength, 64, nameof(textLength));
-        ulong dot = default, separator = default;
+        ulong _dot = default, _separator = default;
         int offset = default;
         if (BitConverter.IsLittleEndian)
         {
@@ -181,8 +546,8 @@ public static class SimdPath
                 {
                     var v = Vector256.LoadUnsafe(ref text, (nuint)offset);
                     var compoundSeparatorDot = Vector256.Narrow(Vector256.Equals(v, Vector256.Create((ushort)'/')), Vector256.Equals(v, Vector256.Create((ushort)'.'))).ExtractMostSignificantBits();
-                    separator |= ((ulong)(compoundSeparatorDot & 0xffffu)) << offset;
-                    dot |= ((ulong)((compoundSeparatorDot & 0xffff0000u) >>> 16)) << offset;
+                    _separator |= ((ulong)(compoundSeparatorDot & 0xffffu)) << offset;
+                    _dot |= ((ulong)((compoundSeparatorDot & 0xffff0000u) >>> 16)) << offset;
                 }
             }
             if (Vector128.IsHardwareAccelerated)
@@ -191,8 +556,8 @@ public static class SimdPath
                 {
                     var v = Vector128.LoadUnsafe(ref text, (nuint)offset);
                     var compoundSeparatorDot = Vector128.Narrow(Vector128.Equals(v, Vector128.Create((ushort)'/')), Vector128.Equals(v, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
-                    separator |= ((ulong)(compoundSeparatorDot & 0xffu)) << offset;
-                    dot |= ((ulong)((compoundSeparatorDot & 0xff00u) >>> 8)) << offset;
+                    _separator |= ((ulong)(compoundSeparatorDot & 0xffu)) << offset;
+                    _dot |= ((ulong)((compoundSeparatorDot & 0xff00u) >>> 8)) << offset;
                 }
             }
         }
@@ -202,110 +567,22 @@ public static class SimdPath
             switch (Unsafe.Add(ref text, offset))
             {
                 case '/':
-                    separator |= 1ul << offset;
+                    _separator |= 1ul << offset;
                     break;
                 case '.':
-                    dot |= 1ul << offset;
+                    _dot |= 1ul << offset;
                     break;
             }
         }
 
-        if (separator == default)
-        {
-            Unsafe.SkipInit(out current);
-            Unsafe.SkipInit(out parent);
-        }
-        else
-        {
-            var separatorWithBitWall = separator | ((ulong.MaxValue >>> textLength) << textLength);
-            // /./ or /.$ or ^./ or ^.$
-            current = ((separator << 1) | 1ul) & dot & (separatorWithBitWall >>> 1);
-            // /../ or /..$ or ^../ or ^..$
-            parent = ((separator << 1) | 1ul) & dot & (dot >>> 1) & (separatorWithBitWall >>> 2);
-        }
-
-        return separator;
-    }
-
-    private static int InitializeSeparatorCurrentParent(ref ushort text, int textLength, ref ulong separatorRef, ref ulong currentRef, ref ulong parentRef)
-    {
-        int offset = default;
-        if (BitConverter.IsLittleEndian)
-        {
-            if (Vector256.IsHardwareAccelerated)
-            {
-                for (; offset + Vector256<ushort>.Count <= textLength; offset += Vector256<ushort>.Count)
-                {
-                    var v = Vector256.LoadUnsafe(ref text, (nuint)offset);
-                    var compoundSeparatorDot = Vector256.Narrow(Vector256.Equals(v, Vector256.Create((ushort)'/')), Vector256.Equals(v, Vector256.Create((ushort)'.'))).ExtractMostSignificantBits();
-                    var tempOffset = offset & 63;
-                    var partialSeparator = (ushort)compoundSeparatorDot;
-                    Unsafe.Add(ref separatorRef, offset >>> 6) |= ((ulong)(partialSeparator)) << tempOffset;
-                    Unsafe.Add(ref currentRef, offset >>> 6) |= ((ulong)((compoundSeparatorDot & 0xffff0000u) >>> 16)) << tempOffset;
-                }
-            }
-            if (Vector128.IsHardwareAccelerated)
-            {
-                for (; offset + Vector128<ushort>.Count <= textLength; offset += Vector128<ushort>.Count)
-                {
-                    var v = Vector128.LoadUnsafe(ref text, (nuint)offset);
-                    var compoundSeparatorDot = Vector128.Narrow(Vector128.Equals(v, Vector128.Create((ushort)'/')), Vector128.Equals(v, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
-                    var tempOffset = offset & 63;
-                    var partialSeparator = (byte)compoundSeparatorDot;
-                    Unsafe.Add(ref separatorRef, offset >>> 6) |= ((ulong)partialSeparator) << tempOffset;
-                    Unsafe.Add(ref currentRef, offset >>> 6) |= ((ulong)((compoundSeparatorDot & 0xff00u) >>> 8)) << tempOffset;
-                }
-            }
-        }
-
-        for (; offset < textLength; ++offset)
-        {
-            var tempOffset = offset & 63;
-            switch (Unsafe.Add(ref text, offset))
-            {
-                case '/':
-                    Unsafe.Add(ref separatorRef, offset >>> 6) |= 1ul << tempOffset;
-                    break;
-                case '.':
-                    Unsafe.Add(ref currentRef, offset >>> 6) |= 1ul << tempOffset;
-                    break;
-            }
-        }
-
-        var segmentCount = BitOperations.PopCount(separatorRef & ~((separatorRef << 1) & separatorRef));
-        var nextSeparatorLsh62 = Unsafe.Add(ref separatorRef, 1) << 62;
-        var separatorLsh1 = (separatorRef << 1) | 1ul;
-        parentRef = separatorLsh1 & currentRef & ((Unsafe.Add(ref currentRef, 1) << 63) | (currentRef >>> 1)) & (nextSeparatorLsh62 | (separatorRef >>> 2));
-        currentRef &= separatorLsh1 & ((nextSeparatorLsh62 << 1) | (separatorRef >>> 1));
-        var oldSeparator = separatorRef >>> 63;
-        int arrayLengthMinus1 = ((textLength + 63) >>> 6) - 1;
-        for (int arrayIndex = 1; arrayIndex < arrayLengthMinus1; ++arrayIndex)
-        {
-            ref var tempCurrent = ref Unsafe.Add(ref currentRef, arrayIndex);
-            var tempSeparator = Unsafe.Add(ref separatorRef, arrayIndex);
-            separatorLsh1 = (tempSeparator << 1) | oldSeparator;
-            oldSeparator = tempSeparator >>> 63;
-            segmentCount += BitOperations.PopCount(tempSeparator & ~(separatorLsh1 & tempSeparator));
-            nextSeparatorLsh62 = Unsafe.Add(ref separatorRef, arrayIndex + 1) << 62;
-            Unsafe.Add(ref parentRef, arrayIndex) = separatorLsh1 & tempCurrent & ((Unsafe.Add(ref tempCurrent, 1) << 63) | (tempCurrent >>> 1)) & (nextSeparatorLsh62 | (tempSeparator >>> 2));
-            tempCurrent &= separatorLsh1 & ((nextSeparatorLsh62 << 1) | (tempSeparator >>> 1));
-        }
-
-        {
-            ref var tempCurrent = ref Unsafe.Add(ref currentRef, arrayLengthMinus1);
-            var tempSeparator = Unsafe.Add(ref separatorRef, arrayLengthMinus1) | ((ulong.MaxValue >>> (textLength & 63)) << (textLength & 63));
-            separatorLsh1 = (tempSeparator << 1) | oldSeparator;
-            segmentCount += BitOperations.PopCount(tempSeparator & ~(separatorLsh1 & tempSeparator));
-            Unsafe.Add(ref parentRef, arrayLengthMinus1) = separatorLsh1 & tempCurrent & (tempCurrent >>> 1) & ((ulong.MaxValue << 62) | (tempSeparator >>> 2));
-            tempCurrent &= separatorLsh1 & ((ulong.MaxValue << 63) | (tempSeparator >>> 1));
-        }
-
-        return segmentCount;
+        separator = _separator;
+        dot = _dot;
     }
 
     private ref struct UnixInfo
     {
-        private readonly ReadOnlySpan<char> Text;
+        private readonly ref ushort Text;
+        private readonly int TextLength;
         private readonly ref int OffsetRef;
         private readonly ref int LengthRef;
         private int SegmentCount;
@@ -317,16 +594,19 @@ public static class SimdPath
         private int NotParentCount;
         public int Offset;
         public readonly int TotalLength => Sum(ref LengthRef, SegmentCount) + SegmentCount - (!EndsWithSeparator ? 1 : 0);
-        public readonly bool IsInRange => Offset < Text.Length;
+        public readonly bool IsInRange => Offset < TextLength;
 
-        public UnixInfo(ReadOnlySpan<char> text, Span<int> segmentSpan)
+        public readonly void SetLastSegmentEndExclusive(int endExclusive) => Unsafe.Add(ref LengthRef, SegmentCount - 1) = endExclusive - Unsafe.Add(ref OffsetRef, SegmentCount - 1);
+
+        public UnixInfo(ref ushort text, int textLength, Span<int> segmentSpan)
         {
-            Text = text;
+            Text = ref text;
+            TextLength = textLength;
             OffsetRef = ref MemoryMarshal.GetReference(segmentSpan);
             LengthRef = ref Unsafe.Add(ref OffsetRef, segmentSpan.Length >>> 1);
             StartsWithCurrent = false;
             EndsWithSeparator = true;
-            if (StartsWithSeparator = MemoryMarshal.GetReference(text) == '/')
+            if (StartsWithSeparator = text == '/')
             {
                 Offset = 1;
                 OffsetRef = 0;
@@ -402,16 +682,24 @@ public static class SimdPath
 
         public static void Create(Span<char> span, UnixInfo arg)
         {
+            ref byte destination = ref Unsafe.As<char, byte>(ref MemoryMarshal.GetReference(span));
+            int destinationOffset = 0;
             for (int segmentIndex = 0; segmentIndex < arg.SegmentCount;)
             {
-                var slice = arg.Text.Slice(Unsafe.Add(ref arg.OffsetRef, segmentIndex), Unsafe.Add(ref arg.LengthRef, segmentIndex));
-                slice.CopyTo(span);
-                span = span[slice.Length..];
-                if (++segmentIndex < arg.SegmentCount || arg.EndsWithSeparator)
+                var offset = Unsafe.Add(ref arg.OffsetRef, segmentIndex);
+                var length = Unsafe.Add(ref arg.LengthRef, segmentIndex);
+                while (++segmentIndex < arg.SegmentCount && offset + length + 1 == Unsafe.Add(ref arg.OffsetRef, segmentIndex))
                 {
-                    MemoryMarshal.GetReference(span) = '/';
-                    span = span[1..];
+                    length += Unsafe.Add(ref arg.LengthRef, segmentIndex) + 1;
                 }
+
+                if (arg.EndsWithSeparator || segmentIndex != arg.SegmentCount)
+                {
+                    length++;
+                }
+
+                Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref destination, destinationOffset), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref arg.Text, offset)), (uint)(length << 1));
+                destinationOffset += length << 1;
             }
         }
 
@@ -441,7 +729,7 @@ public static class SimdPath
             return answer;
         }
 
-        public readonly string CreateOrAsIs(string path)
+        public readonly string? CreateOrNull()
         {
             if (IsSeparatorOnly)
             {
@@ -453,9 +741,9 @@ public static class SimdPath
             {
                 return "";
             }
-            else if (answerLength == path.Length)
+            else if (answerLength == TextLength)
             {
-                return path;
+                return default;
             }
 
             return string.Create(answerLength, this, UnixInfo.Create);
