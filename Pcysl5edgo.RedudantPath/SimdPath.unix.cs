@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -23,13 +24,117 @@ public static class SimdPath
         }
 
         var span = path.AsSpan();
-        ref var textRef = ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span));
-        return span.Length switch
+        return ImplEach(span) ?? path;
+        //ref var textRef = ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span));
+        //return span.Length switch
+        //{
+        //    <= 64 => ImplLTE64(ref textRef, path.Length),
+        //    <= 128 => ImplLTE128(ref textRef, path.Length),
+        //    _ => ImplGT128(ref textRef, path.Length),
+        //} ?? path;
+    }
+
+    private static string? ImplEach(ReadOnlySpan<char> text)
+    {
+        var span = (stackalloc int[text.Length + 2]);
+        var info = new UnixInfo(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(text)), text.Length, span)
         {
-            <= 64 => ImplLTE64(ref textRef, path.Length),
-            <= 128 => ImplLTE128(ref textRef, path.Length),
-            _ => ImplGT128(ref textRef, path.Length),
-        } ?? path;
+            EndsWithSeparator = text[^1] == '/'
+        };
+        while (info.Offset < text.Length)
+        {
+            var c = text[info.Offset++];
+            if (c == '/')
+            {
+                var foundIndex = text[info.Offset..].IndexOfAnyExcept('/');
+                if (foundIndex < 0)
+                {
+                    break;
+                }
+
+                info.Offset += foundIndex;
+            }
+            else if (c == '.')
+            {
+                if (info.Offset >= text.Length)
+                {
+                    --info.Offset;
+                    info.TryAddCurrentSegment();
+                    break;
+                }
+
+                c = text[info.Offset++];
+                if (c == '/')
+                {
+                    info.Offset -= 2;
+                    info.TryAddCurrentSegment();
+                    info.Offset += 2;
+                }
+                else if (c == '.')
+                {
+                    if (info.Offset >= text.Length)
+                    {
+                        info.Offset -= 2;
+                        info.TryAddParentSegment();
+                        break;
+                    }
+
+                    if (text[info.Offset++] == '/')
+                    {
+                        info.Offset -= 3;
+                        info.TryAddParentSegment();
+                        info.Offset += 3;
+                    }
+                    else
+                    {
+                        var foundIndex = text[info.Offset..].IndexOf('/');
+                        info.Offset -= 3;
+                        if (foundIndex < 0)
+                        {
+                            info.AddNormalSegment(text.Length - info.Offset);
+                            break;
+                        }
+                        else
+                        {
+                            info.AddNormalSegment(foundIndex + 3);
+                            info.Offset += 3 + foundIndex;
+                        }
+                    }
+                }
+                else
+                {
+                    var foundIndex = text[info.Offset..].IndexOf('/');
+                    info.Offset -= 2;
+                    if (foundIndex < 0)
+                    {
+                        info.AddNormalSegment(text.Length - info.Offset);
+                        break;
+                    }
+                    else
+                    {
+                        info.AddNormalSegment(foundIndex + 2);
+                        info.Offset += foundIndex + 2;
+                    }
+                }
+            }
+            else
+            {
+                var foundIndex = text[info.Offset..].IndexOf('/');
+                --info.Offset;
+                if (foundIndex < 0)
+                {
+                    info.AddNormalSegment(text.Length - info.Offset);
+                    break;
+                }
+                else
+                {
+                    info.AddNormalSegment(foundIndex + 1);
+                    info.Offset += foundIndex + 2;
+                }
+            }
+        }
+
+        return info.ToString();
     }
 
     private static string? ImplLTE64(ref ushort text, int textLength)
@@ -114,7 +219,7 @@ public static class SimdPath
             info.Offset = BitSpan.TrailingOneCount(separator, info.Offset);
         }
 
-        return info.CreateOrNull();
+        return info.ToString();
     }
 
     private static int CountAloneSeparator(ulong separator) => BitOperations.PopCount(separator & ~(separator & (separator << 1)));
@@ -292,7 +397,7 @@ public static class SimdPath
             }
         }
 
-        return info.CreateOrNull();
+        return info.ToString();
     }
 
     private static string? ImplGT128(ref ushort text, int textLength)
@@ -484,7 +589,7 @@ public static class SimdPath
             }
         }
 
-        return info.CreateOrNull();
+        return info.ToString();
     }
 
     private static void InitializeSeparatorDot(ref ushort text, out ulong separator, out ulong dot)
@@ -596,6 +701,10 @@ public static class SimdPath
         public readonly int TotalLength => Sum(ref lengthRef, segmentCount) + segmentCount - (!EndsWithSeparator ? 1 : 0);
         public readonly bool IsInRange => Offset < textLength;
 
+#if DEBUG
+        private readonly int segmentCapacity;
+#endif
+
         public readonly void SetLastSegmentEndExclusive(int endExclusive) => Unsafe.Add(ref lengthRef, segmentCount - 1) = endExclusive - Unsafe.Add(ref offsetRef, segmentCount - 1);
 
         public UnixInfo(ref ushort text, int textLength, Span<int> segmentSpan)
@@ -604,6 +713,10 @@ public static class SimdPath
             this.textLength = textLength;
             offsetRef = ref MemoryMarshal.GetReference(segmentSpan);
             lengthRef = ref Unsafe.Add(ref offsetRef, segmentSpan.Length >>> 1);
+#if DEBUG
+            segmentCapacity = segmentSpan.Length >>> 1;
+            Debug.Assert(segmentCapacity > 0);
+#endif
             startsWithCurrent = false;
             EndsWithSeparator = true;
             if (StartsWithSeparator = text == '/')
@@ -622,6 +735,10 @@ public static class SimdPath
 
         public void AddNormalSegment(int length)
         {
+#if DEBUG
+            Debug.Assert(Offset + length <= textLength);
+            Debug.Assert(segmentCount < segmentCapacity);
+#endif
             Unsafe.Add(ref offsetRef, segmentCount) = Offset;
             Unsafe.Add(ref lengthRef, segmentCount++) = length;
             ++notParentCount;
@@ -631,6 +748,10 @@ public static class SimdPath
         {
             if (IsSegmentEmpty)
             {
+#if DEBUG
+                Debug.Assert(Offset + 1 <= textLength);
+                Debug.Assert(segmentCount < segmentCapacity);
+#endif
                 offsetRef = Offset;
                 lengthRef = 1;
                 segmentCount = 1;
@@ -645,6 +766,9 @@ public static class SimdPath
                 --notParentCount;
                 if (--segmentCount == 0 && startsWithCurrent)
                 {
+#if DEBUG
+                    Debug.Assert(Offset + 2 <= textLength);
+#endif
                     startsWithCurrent = false;
                     offsetRef = Offset;
                     lengthRef = 2;
@@ -656,6 +780,10 @@ public static class SimdPath
             switch (segmentCount)
             {
                 case 0:
+#if DEBUG
+                    Debug.Assert(Offset + 2 <= textLength);
+                    Debug.Assert(segmentCount < segmentCapacity);
+#endif
                     offsetRef = Offset;
                     lengthRef = 2;
                     segmentCount = 1;
@@ -675,6 +803,9 @@ public static class SimdPath
             }
             else
             {
+#if DEBUG
+                Debug.Assert(segmentCount < segmentCapacity);
+#endif
                 Unsafe.Add(ref offsetRef, segmentCount) = Offset;
                 Unsafe.Add(ref lengthRef, segmentCount++) = 2;
             }
@@ -729,7 +860,7 @@ public static class SimdPath
             return answer;
         }
 
-        public readonly string? CreateOrNull()
+        public override readonly string? ToString()
         {
             if (IsSeparatorOnly)
             {
