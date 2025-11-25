@@ -42,7 +42,7 @@ public class FullPathBenchmarks
 }
 
 [MediumRunJob]
-public class ComparisonBenchmarks
+public class RelativePathBenchmarks
 {
     [ParamsSource(nameof(TestPaths_Unix))]
     public string Source = "";

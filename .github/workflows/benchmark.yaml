@@ -18,9 +18,13 @@ jobs:
       - name: Build solution
         run: dotnet build -c Release
 
-      - name: Run BenchmarkDotNet
+      - name: Run BenchmarkDotNet FullPath
         run: |
-          dotnet run -c Release --project Pcysl5edgo.RemoveRedundantPath.Benchmark/Pcysl5edgo.RemoveRedundantPath.Benchmark.csproj
+          dotnet run -c Release --project Pcysl5edgo.RemoveRedundantPath.Benchmark/Pcysl5edgo.RemoveRedundantPath.Benchmark.csproj --filter Pcysl5edgo.RemoveRedundantPath.FullPathBenchmarks
+
+      - name: Run BenchmarkDotNet RelativePath
+        run: |
+          dotnet run -c Release --project Pcysl5edgo.RemoveRedundantPath.Benchmark/Pcysl5edgo.RemoveRedundantPath.Benchmark.csproj --filter Pcysl5edgo.RemoveRedundantPath.RelativePathBenchmarks
 
       - name: Upload Benchmark Results
         uses: actions/upload-artifact@v4
