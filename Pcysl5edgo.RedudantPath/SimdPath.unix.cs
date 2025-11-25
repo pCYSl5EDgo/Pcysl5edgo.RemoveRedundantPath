@@ -8,7 +8,7 @@ namespace Pcysl5edgo.RemoveRedundantPath;
 
 public static class SimdPath
 {
-    public static string RemoveRedundantSegmentsSpan(string? path)
+    public static string RemoveRedundantSegmentsEach(string? path)
     {
         if (path is null)
         {
@@ -25,13 +25,32 @@ public static class SimdPath
 
         var span = path.AsSpan();
         return ImplEach(span) ?? path;
-        //ref var textRef = ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span));
-        //return span.Length switch
-        //{
-        //    <= 64 => ImplLTE64(ref textRef, path.Length),
-        //    <= 128 => ImplLTE128(ref textRef, path.Length),
-        //    _ => ImplGT128(ref textRef, path.Length),
-        //} ?? path;
+    }
+
+    public static string RemoveRedundantSegmentsSpan(string? path)
+    {
+        if (path is null)
+        {
+            return string.Empty;
+        }
+        else if (path.Length <= 1)
+        {
+            return path;
+        }
+        else if (path.Length == 2)
+        {
+            return path[0] != '/' || path[1] != '/' && path[1] != '.' ? path : "/";
+        }
+
+        var span = path.AsSpan();
+        ref var textRef = ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span));
+        return span.Length switch
+        {
+            <= 32 => ImplLTE32(ref textRef, path.Length),
+            <= 64 => ImplLTE64(ref textRef, path.Length),
+            <= 128 => ImplLTE128(ref textRef, path.Length),
+            _ => ImplGT128(ref textRef, path.Length),
+        } ?? path;
     }
 
     private static string? ImplEach(ReadOnlySpan<char> text)
@@ -137,9 +156,94 @@ public static class SimdPath
         return info.ToString();
     }
 
+    private static string? ImplLTE32(ref ushort text, int textLength)
+    {
+        var dot = InitializeSeparatorDot(ref text, textLength, out uint separator);
+        if (separator == default)
+        {
+            return default;
+        }
+
+        var separatorWithBitWall = separator | ((uint.MaxValue >>> textLength) << textLength);
+        // /./ or /.$ or ^./ or ^.$
+        var current = ((separator << 1) | 1u) & dot & (separatorWithBitWall >>> 1);
+        // /../ or /..$ or ^../ or ^..$
+        var parent = ((separator << 1) | 1u) & dot & (dot >>> 1) & (separatorWithBitWall >>> 2);
+        var _ = (stackalloc int[(CountAloneSeparator(separator) + 1) << 1]);
+        var info = new UnixInfo(ref text, textLength, _);
+        if (info.StartsWithSeparator)
+        {
+            info.Offset = BitSpan.TrailingOneCount(separator, info.Offset);
+        }
+
+        var cp = current | parent;
+        while (info.IsInRange)
+        {
+            if (BitSpan.GetBit(cp, info.Offset))
+            {
+                if (BitSpan.GetBit(current, info.Offset))
+                {
+                    if (info.Offset + 1 < textLength)
+                    {
+                        info.TryAddCurrentSegment();
+                        info.Offset += 2;
+                    }
+                    else
+                    {
+                        if (info.IsSegmentEmpty)
+                        {
+                            return ".";
+                        }
+
+                        info.EndsWithSeparator = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (info.Offset + 2 < textLength)
+                    {
+                        info.TryAddParentSegment();
+                        info.Offset += 3;
+                    }
+                    else
+                    {
+                        if (info.IsSegmentEmpty)
+                        {
+                            return "..";
+                        }
+
+                        info.EndsWithSeparator = false;
+                        info.TryAddParentSegment();
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                var foundIndex = BitOperations.TrailingZeroCount(separator >>> info.Offset) + info.Offset;
+                if (foundIndex < 32)
+                {
+                    info.AddNormalSegment(foundIndex - info.Offset);
+                    info.Offset = foundIndex + 1;
+                }
+                else
+                {
+                    info.AddNormalSegment(textLength - info.Offset);
+                    info.EndsWithSeparator = false;
+                    break;
+                }
+            }
+
+            info.Offset = BitSpan.TrailingOneCount(separator, info.Offset);
+        }
+
+        return info.ToString();
+    }
+
     private static string? ImplLTE64(ref ushort text, int textLength)
     {
-        InitializeSeparatorDot(ref text, textLength, out var separator, out var dot);
+        var dot = InitializeSeparatorDot(ref text, textLength, out ulong separator);
         if (separator == default)
         {
             return default;
@@ -222,6 +326,7 @@ public static class SimdPath
         return info.ToString();
     }
 
+    private static int CountAloneSeparator(uint separator) => BitOperations.PopCount(separator & ~(separator & (separator << 1)));
     private static int CountAloneSeparator(ulong separator) => BitOperations.PopCount(separator & ~(separator & (separator << 1)));
 
     private static int CountAloneSeparator(ulong oldSeparator, ulong separator) => BitOperations.PopCount(separator & ~(separator & ((separator << 1) | (oldSeparator >>> 63))));
@@ -265,8 +370,8 @@ public static class SimdPath
     {
         var lastLength = textLength & 63;
         var separatorSpan = (stackalloc ulong[4]);
-        InitializeSeparatorDot(ref text, out var separatorNow, out var dotNow);
-        InitializeSeparatorDot(ref Unsafe.Add(ref text, 64), lastLength, out var separatorNext, out var dotNext);
+        var dotNow = InitializeSeparatorDot(ref text, out var separatorNow);
+        var dotNext = InitializeSeparatorDot(ref Unsafe.Add(ref text, 64), lastLength, out ulong separatorNext);
         if ((separatorNow | separatorNext) == default)
         {
             return default;
@@ -403,7 +508,7 @@ public static class SimdPath
     private static string? ImplGT128(ref ushort text, int textLength)
     {
         var lastLength = textLength & 63;
-        InitializeSeparatorDot(ref text, out var separatorNow, out var dotNow);
+        var dotNow = InitializeSeparatorDot(ref text, out var separatorNow);
         var _ = (stackalloc int[CountAloneSeparator(separatorNow) + (textLength >>> 1) - 15]);
         var info = new UnixInfo(ref text, textLength, _);
         if (info.StartsWithSeparator)
@@ -411,7 +516,7 @@ public static class SimdPath
             info.Offset = BitSpan.TrailingOneCount(separatorNow, info.Offset);
         }
 
-        InitializeSeparatorDot(ref Unsafe.Add(ref text, 64), out var separatorNext, out var dotNext);
+        var dotNext = InitializeSeparatorDot(ref Unsafe.Add(ref text, 64), out var separatorNext);
         var cp = CalculateCurrentParent(ulong.MaxValue, separatorNow, separatorNext, dotNow, dotNext, out var current);
         var segmentContinue = false;
         while (info.Offset < 64)
@@ -453,7 +558,7 @@ public static class SimdPath
             var separatorOld = separatorNow;
             separatorNow = separatorNext;
             dotNow = dotNext;
-            InitializeSeparatorDot(ref Unsafe.Add(ref text, (arrayIndex + 1) << 6), out separatorNext, out dotNext);
+            dotNext = InitializeSeparatorDot(ref Unsafe.Add(ref text, (arrayIndex + 1) << 6), out separatorNext);
             if (segmentContinue)
             {
                 var foundIndex = BitOperations.TrailingZeroCount(separatorNow);
@@ -592,13 +697,20 @@ public static class SimdPath
         return info.ToString();
     }
 
-    private static void InitializeSeparatorDot(ref ushort text, out ulong separator, out ulong dot)
+    private static ulong InitializeSeparatorDot(ref ushort text, out ulong separator)
     {
         ulong _separator = default, _dot = default;
         int offset = default;
         if (BitConverter.IsLittleEndian)
         {
-            if (Vector256.IsHardwareAccelerated)
+            if (Vector512.IsHardwareAccelerated)
+            {
+                var v0 = Vector512.LoadUnsafe(ref text, (nuint)offset);
+                var v1 = Vector512.LoadUnsafe(ref text, (nuint)(offset + 32));
+                _separator |= Vector512.Narrow(Vector512.Equals(v0, Vector512.Create((ushort)'/')), Vector512.Equals(v1, Vector512.Create((ushort)'/'))).ExtractMostSignificantBits();
+                _dot |= Vector512.Narrow(Vector512.Equals(v0, Vector512.Create((ushort)'.')), Vector512.Equals(v1, Vector512.Create((ushort)'.'))).ExtractMostSignificantBits();
+            }
+            else if (Vector256.IsHardwareAccelerated)
             {
                 for (; offset < 64; offset += 32)
                 {
@@ -634,10 +746,57 @@ public static class SimdPath
         }
 
         separator = _separator;
-        dot = _dot;
+        return _dot;
     }
 
-    private static void InitializeSeparatorDot(ref ushort text, int textLength, out ulong separator, out ulong dot)
+    private static uint InitializeSeparatorDot(ref ushort text, int textLength, out uint separator)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(textLength, nameof(textLength));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(textLength, 32, nameof(textLength));
+        uint _dot = default, _separator = default;
+        int offset = default;
+        if (BitConverter.IsLittleEndian)
+        {
+            if (Vector256.IsHardwareAccelerated)
+            {
+                for (; offset + Vector256<ushort>.Count <= textLength; offset += Vector256<ushort>.Count)
+                {
+                    var v = Vector256.LoadUnsafe(ref text, (nuint)offset);
+                    var compoundSeparatorDot = Vector256.Narrow(Vector256.Equals(v, Vector256.Create((ushort)'/')), Vector256.Equals(v, Vector256.Create((ushort)'.'))).ExtractMostSignificantBits();
+                    _separator |= (compoundSeparatorDot & 0xffffu) << offset;
+                    _dot |= ((compoundSeparatorDot & 0xffff0000u) >>> 16) << offset;
+                }
+            }
+            if (Vector128.IsHardwareAccelerated)
+            {
+                for (; offset + Vector128<ushort>.Count <= textLength; offset += Vector128<ushort>.Count)
+                {
+                    var v = Vector128.LoadUnsafe(ref text, (nuint)offset);
+                    var compoundSeparatorDot = Vector128.Narrow(Vector128.Equals(v, Vector128.Create((ushort)'/')), Vector128.Equals(v, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
+                    _separator |= (compoundSeparatorDot & 0xffu) << offset;
+                    _dot |= ((compoundSeparatorDot & 0xff00u) >>> 8) << offset;
+                }
+            }
+        }
+
+        for (; offset < textLength; ++offset)
+        {
+            switch (Unsafe.Add(ref text, offset))
+            {
+                case '/':
+                    _separator |= 1u << offset;
+                    break;
+                case '.':
+                    _dot |= 1u << offset;
+                    break;
+            }
+        }
+
+        separator = _separator;
+        return _dot;
+    }
+
+    private static ulong InitializeSeparatorDot(ref ushort text, int textLength, out ulong separator)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(textLength, nameof(textLength));
         ArgumentOutOfRangeException.ThrowIfGreaterThan(textLength, 64, nameof(textLength));
@@ -645,6 +804,16 @@ public static class SimdPath
         int offset = default;
         if (BitConverter.IsLittleEndian)
         {
+            if (Vector512.IsHardwareAccelerated)
+            {
+                for (; offset + Vector512<ushort>.Count <= textLength; offset += Vector512<ushort>.Count)
+                {
+                    var v = Vector512.LoadUnsafe(ref text, (nuint)offset);
+                    var compoundSeparatorDot = Vector512.Narrow(Vector512.Equals(v, Vector512.Create((ushort)'/')), Vector512.Equals(v, Vector512.Create((ushort)'.'))).ExtractMostSignificantBits();
+                    _separator |= ((ulong)(uint)compoundSeparatorDot) << offset;
+                    _dot |= (compoundSeparatorDot >>> 32) << offset;
+                }
+            }
             if (Vector256.IsHardwareAccelerated)
             {
                 for (; offset + Vector256<ushort>.Count <= textLength; offset += Vector256<ushort>.Count)
@@ -681,7 +850,7 @@ public static class SimdPath
         }
 
         separator = _separator;
-        dot = _dot;
+        return _dot;
     }
 
     private ref struct UnixInfo

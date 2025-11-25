@@ -38,6 +38,22 @@ public static class BitSpan
         return bitLength;
     }
 
+    public static int TrailingOneCount(uint array, int bitOffset)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(bitOffset);
+        var temp = (~array) >>> bitOffset;
+        if (temp != default)
+        {
+            var answer = BitOperations.TrailingZeroCount(temp) + bitOffset;
+            if (answer < 32)
+            {
+                return answer;
+            }
+        }
+
+        return 32;
+    }
+
     public static int TrailingOneCount(ulong array, int bitOffset)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(bitOffset);
