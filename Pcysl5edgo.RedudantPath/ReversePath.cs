@@ -17,15 +17,14 @@ public static partial class ReversePath
         {
             return path;
         }
+        else if (path.Length == 2)
+        {
+            return (path[1] == '/' || path[1] == '.') && path[0] == '/' ? "/" : path;
+        }
 
         var span = path.AsSpan();
         ref var text = ref MemoryMarshal.GetReference(span);
         var startsWithSeparator = text == '/';
-        if (span.Length == 2)
-        {
-            return startsWithSeparator && (Unsafe.Add(ref text, 1) is '.' or '/') ? "/" : path;
-        }
-
         var endsWithSeparator = Unsafe.Add(ref text, span.Length - 1) == '/';
         var textLength = span.Length - (startsWithSeparator ? 1 : 0) - (endsWithSeparator ? 1 : 0);
         var segmentCountX2 = Info.CalculateMaxSegmentCount(textLength) << 1;
