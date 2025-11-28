@@ -8,9 +8,9 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
 
     [Theory]
     [MemberData(nameof(TestPaths_Unix))]
-    public void UnixSimdSpanTest(string original, string expected)
+    public void UnixReverseTest(string original, string expected)
     {
-        var actual = SimdPath.RemoveRedundantSegmentsSpan(original);
+        var actual = ReversePath.RemoveRedundantSegments(original);
         Assert.Equal(expected, actual);
     }
 
