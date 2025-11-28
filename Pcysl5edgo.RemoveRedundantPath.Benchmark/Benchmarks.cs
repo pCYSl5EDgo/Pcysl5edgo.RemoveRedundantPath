@@ -1,9 +1,10 @@
 using BenchmarkDotNet.Attributes;
+using Pcysl5edgo.RedudantPath;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Pcysl5edgo.RemoveRedundantPath;
+namespace Pcysl5edgo.RemoveRedundantPath.Benchmark;
 
 // For more information on the VS BenchmarkDotNet Diagnosers see https://learn.microsoft.com/visualstudio/profiling/profiling-with-benchmark-dotnet
 [LongRunJob]

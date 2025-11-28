@@ -1,10 +1,8 @@
-using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics;
 
-namespace Pcysl5edgo.RemoveRedundantPath;
+namespace Pcysl5edgo.RedudantPath;
 
 public static class BitSpan
 {

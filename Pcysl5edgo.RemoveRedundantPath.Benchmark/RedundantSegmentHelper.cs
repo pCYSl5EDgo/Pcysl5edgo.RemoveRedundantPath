@@ -1,3 +1,4 @@
+using Pcysl5edgo.RemoveRedundantPath.Benchmark;
 using System;
 
 namespace Pcysl5edgo.RemoveRedundantPath;

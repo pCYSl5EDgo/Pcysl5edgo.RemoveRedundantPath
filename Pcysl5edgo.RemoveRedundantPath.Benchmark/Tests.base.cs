@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Pcysl5edgo.RemoveRedundantPath.Tests;
+namespace Pcysl5edgo.RemoveRedundantPath.Benchmark;
 
 public class RedundantSegmentsTestsBase
 {

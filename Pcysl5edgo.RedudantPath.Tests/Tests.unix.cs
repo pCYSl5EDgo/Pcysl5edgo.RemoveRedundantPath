@@ -1,4 +1,6 @@
-namespace Pcysl5edgo.RemoveRedundantPath.Tests;
+using Pcysl5edgo.RedudantPath;
+
+namespace Pcysl5edgo.RedudantPath.Tests;
 
 public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
 {

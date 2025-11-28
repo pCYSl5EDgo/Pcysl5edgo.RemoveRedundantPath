@@ -1,7 +1,4 @@
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
-namespace Pcysl5edgo.RemoveRedundantPath.Tests;
+namespace Pcysl5edgo.RedudantPath.Tests;
 
 public class IndexOfTests
 {
