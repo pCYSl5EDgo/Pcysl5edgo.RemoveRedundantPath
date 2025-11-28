@@ -7,7 +7,7 @@ using System.Linq;
 namespace Pcysl5edgo.RemoveRedundantPath.Benchmark;
 
 // For more information on the VS BenchmarkDotNet Diagnosers see https://learn.microsoft.com/visualstudio/profiling/profiling-with-benchmark-dotnet
-[LongRunJob]
+[ShortRunJob]
 [BenchmarkCategory("FullPath")]
 public class FullPathBenchmarks
 {
@@ -17,9 +17,9 @@ public class FullPathBenchmarks
     public IEnumerable<string> TestPaths_Unix => TestData.Paths.Where(static x => x.StartsWith('/'));
 
     [Benchmark]
-    public string Each()
+    public string ReverseEach()
     {
-        return SimdPath.RemoveRedundantSegmentsEach(Source);
+        return ReversePath.RemoveRedundantSegments(Source);
     }
 
     [Benchmark]
@@ -49,7 +49,7 @@ public class FullPathBenchmarks
     }
 }
 
-[LongRunJob]
+[ShortRunJob]
 [BenchmarkCategory("RelativePath")]
 public class RelativePathBenchmarks
 {
@@ -59,9 +59,9 @@ public class RelativePathBenchmarks
     public IEnumerable<string> TestPaths_Unix => TestData.Paths;
 
     [Benchmark]
-    public string Each()
+    public string ReverseEach()
     {
-        return SimdPath.RemoveRedundantSegmentsEach(Source);
+        return ReversePath.RemoveRedundantSegments(Source);
     }
 
     [Benchmark]
