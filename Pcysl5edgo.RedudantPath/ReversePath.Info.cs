@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -33,7 +34,33 @@ public static partial class ReversePath
         // a/./a
         public static int CalculateMaxSegmentCount(int charCount) => (charCount + 3) >>> 2;
 
-        public int Initialize(int textLength) => startsWithSeparator ? InitializeWithStartingSeparator(textLength) : InitializeWithoutStartingSeparator(textLength);
+        public int Initialize(int textLength)
+        {
+            Debug.Assert(textLength >= 0);
+            if (startsWithSeparator)
+            {
+                if (textLength < 16)
+                {
+                    return InitializeWithStartingSeparator(textLength);
+                }
+                else if (textLength <= 32)
+                {
+                    return InitializeWithStartingSeparatorSimdLTE32(textLength);
+                }
+                else if (textLength <= 64)
+                {
+                    return InitializeWithStartingSeparatorSimdLTE64(textLength);
+                }
+                else
+                {
+                    return InitializeWithStartingSeparatorSimdGT64(textLength);
+                }
+            }
+            else
+            {
+                return InitializeWithoutStartingSeparator(textLength);
+            }
+        }
 
         private int InitializeWithStartingSeparator(int textLength)
         {
@@ -149,7 +176,7 @@ public static partial class ReversePath
                 return 1;
             }
 
-            return segmentCharCount + segmentCount + (endsWithSepartor ? 1 : 0);
+            return segmentCount + segmentCharCount + (endsWithSepartor ? 1 : 0);
         }
 
         private int InitializeWithoutStartingSeparator(int textLength)
@@ -290,6 +317,279 @@ public static partial class ReversePath
             }
         }
 
+        public int InitializeWithStartingSeparatorSimdLTE32(int textLength)
+        {
+            var sep = BitSpan.Get(ref textRef, out uint dot, textLength);
+            var sepWall = ((sep >>> 1) | BitSpan.CalculateUpperBitWall32(textLength - 1));
+            var current = dot & ((sep << 1) | 1u) & sepWall;
+            var parent = dot & (dot << 1) & ((sep << 2) | 2u) & sepWall;
+            var sepWithNeighborSep = sep & (sepWall | (sep << 1) | 1u);
+            if ((current | parent | sepWithNeighborSep) == 0)
+            {
+                return textLength + 1 + (endsWithSepartor ? 1 : 0);
+            }
+
+            int segmentCharCount = 0;
+            var any = sep | current | parent;
+            const int BitCount = 32;
+            for (int textIndex = textLength - 1; textIndex >= 0;)
+            {
+                if (BitSpan.GetBit(any, textIndex))
+                {
+                    if (BitSpan.GetBit(sep, textIndex))
+                    {
+                        textIndex = BitCount - 1 - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(~sep, BitCount - textIndex));
+                    }
+                    else if (BitSpan.GetBit(parent, textIndex))
+                    {
+                        ++parentCount;
+                        textIndex -= 3;
+                    }
+                    else
+                    {
+                        Debug.Assert(BitSpan.GetBit(current, textIndex));
+                        textIndex -= 2;
+                    }
+                }
+                else
+                {
+                    var nextSeparatorIndex = BitCount - 1 - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(sep, BitCount - textIndex));
+                    var length = textIndex - nextSeparatorIndex;
+                    if (parentCount != 0)
+                    {
+                        --parentCount;
+                    }
+                    else
+                    {
+                        if (segmentCount == 0)
+                        {
+                            offsetRef = nextSeparatorIndex + 1;
+                            lengthRef = length;
+                            segmentCount = 1;
+                            segmentCharCount = length;
+                        }
+                        else
+                        {
+                            ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
+                            if (textIndex + 2 == oldOffset)
+                            {
+                                oldOffset = nextSeparatorIndex + 1;
+                                Unsafe.Add(ref lengthRef, segmentCount - 1) += ++length;
+                                segmentCharCount += length;
+                            }
+                            else
+                            {
+                                Unsafe.Add(ref offsetRef, segmentCount) = nextSeparatorIndex + 1;
+                                Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                                segmentCharCount += length;
+                            }
+                        }
+                    }
+
+                    textIndex = nextSeparatorIndex - 1;
+                }
+            }
+
+            var totalLength = segmentCount + segmentCharCount + (endsWithSepartor ? 1 : 0);
+            return totalLength == 0 ? 1 : totalLength;
+        }
+
+        public int InitializeWithStartingSeparatorSimdLTE64(int textLength)
+        {
+            var sep = BitSpan.Get(ref textRef, out ulong dot, textLength);
+            var sepWall = ((sep >>> 1) | BitSpan.CalculateUpperBitWall64(textLength - 1));
+            var current = dot & ((sep << 1) | 1ul) & sepWall;
+            var parent = dot & (dot << 1) & ((sep << 2) | 2ul) & sepWall;
+            var sepWithNeighborSep = sep & (sepWall | (sep << 1) | 1ul);
+            if ((current | parent | sepWithNeighborSep) == 0)
+            {
+                return textLength + 1 + (endsWithSepartor ? 1 : 0);
+            }
+
+            int segmentCharCount = 0;
+            var any = sep | current | parent;
+            const int BitCount = 64;
+            int textIndex = textLength - 1;
+            do
+            {
+                if (BitSpan.GetBit(any, textIndex))
+                {
+                    if (BitSpan.GetBit(sep, textIndex))
+                    {
+                        textIndex = BitCount - 1 - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(~sep, BitCount - textIndex));
+                    }
+                    else if (BitSpan.GetBit(parent, textIndex))
+                    {
+                        ++parentCount;
+                        textIndex -= 3;
+                    }
+                    else
+                    {
+                        Debug.Assert(BitSpan.GetBit(current, textIndex));
+                        textIndex -= 2;
+                    }
+                }
+                else
+                {
+                    var nextSeparatorIndex = BitCount - 1 - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(sep, BitCount - textIndex));
+                    var length = textIndex - nextSeparatorIndex;
+                    if (parentCount != 0)
+                    {
+                        --parentCount;
+                    }
+                    else
+                    {
+                        if (segmentCount == 0)
+                        {
+                            offsetRef = nextSeparatorIndex + 1;
+                            lengthRef = length;
+                            segmentCount = 1;
+                            segmentCharCount = length;
+                        }
+                        else
+                        {
+                            ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
+                            if (textIndex + 2 == oldOffset)
+                            {
+                                oldOffset = nextSeparatorIndex + 1;
+                                Unsafe.Add(ref lengthRef, segmentCount - 1) += ++length;
+                            }
+                            else
+                            {
+                                Unsafe.Add(ref offsetRef, segmentCount) = nextSeparatorIndex + 1;
+                                Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                            }
+
+                            segmentCharCount += length;
+                        }
+                    }
+
+                    textIndex = nextSeparatorIndex - 1;
+                }
+            } while (textIndex >= 0);
+
+            var totalLength = segmentCount + segmentCharCount + (endsWithSepartor ? 1 : 0);
+            return totalLength == 0 ? 1 : totalLength;
+        }
+
+        public int InitializeWithStartingSeparatorSimdGT64(int textLength)
+        {
+            Debug.Assert(textLength >= 65);
+            const int BitCount = 64;
+            int segmentCharCount = 0, textIndex = textLength - 1, ulongCount = (textLength + (BitCount - 1)) >>> 6;
+            var sepCurrent = BitSpan.Get(ref Unsafe.Add(ref textRef, (ulongCount - 1) * BitCount), out ulong dotCurrent, textLength & (BitCount - 1));
+            var sepPrev = BitSpan.Get(ref Unsafe.Add(ref textRef, (ulongCount - 2) * BitCount), out ulong dotPrev);
+            var sepWall = BitSpan.CalculateUpperBitWall64((textLength & (BitCount - 1)) - 1) | (sepCurrent >>> 1);
+            var current = dotCurrent & ((sepCurrent << 1) | (sepPrev >>> (BitCount - 1))) & sepWall;
+            var parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> (BitCount - 1))) & ((sepCurrent << 2) | (sepPrev >>> (BitCount - 2))) & sepWall;
+            var doesNormalPathSegmentContinue = DoLoopWithStartingSeparator(ref segmentCharCount, ref textIndex, false, sepCurrent, parent, current, ulongCount - 1);
+
+            for (int ulongIndex = ulongCount - 2; ulongIndex > 0; --ulongIndex)
+            {
+                sepWall = (sepCurrent << (BitCount - 1)) | (sepPrev >>> 1);
+                sepCurrent = sepPrev;
+                dotCurrent = dotPrev;
+                sepPrev = BitSpan.Get(ref textRef, out dotPrev);
+                current = dotCurrent & ((sepCurrent << 1) | (sepPrev >>> (BitCount - 1))) & sepWall;
+                parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> (BitCount - 1))) & ((sepCurrent << 2) | (sepPrev >>> (BitCount - 2))) & sepWall;
+                doesNormalPathSegmentContinue = DoLoopWithStartingSeparator(ref segmentCharCount, ref textIndex, doesNormalPathSegmentContinue, sepCurrent, parent, current, ulongIndex);
+            }
+
+            sepWall = (sepCurrent << (BitCount - 1)) | (sepPrev >>> 1);
+            current = dotPrev & ((sepPrev << 1) | 1ul) & sepWall;
+            parent = dotPrev & (dotPrev << 1) & ((sepPrev << 2) | 2ul) & sepWall;
+            _ = DoLoopWithStartingSeparator(ref segmentCharCount, ref textIndex, doesNormalPathSegmentContinue, sepPrev, parent, current, 0);
+
+            var totalLength = segmentCount + segmentCharCount + (endsWithSepartor ? 1 : 0);
+            return totalLength == 0 ? 1 : totalLength;
+        }
+
+        private bool DoLoopWithStartingSeparator(ref int segmentCharCount, ref int textIndex, bool doesNormalPathSegmentContinue, ulong separator, ulong parent, ulong current, int ulongIndex)
+        {
+            var loopLowerLimit = ulongIndex << 6;
+            var textIndexOffset = loopLowerLimit + 64;
+            var any = separator | parent | current;
+            do
+            {
+                if (BitSpan.GetBit(any, textIndex))
+                {
+                    textIndex = RarePathWithStartingSeparator(textIndex, separator, parent, textIndexOffset);
+                    continue;
+                }
+
+                var temp = BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex);
+                var nextSeparatorIndex = textIndexOffset - 1 - BitOperations.LeadingZeroCount(temp);
+                var length = textIndex - nextSeparatorIndex;
+                if (parentCount != 0)
+                {
+                    --parentCount;
+                }
+                else if (segmentCount == 0)
+                {
+                    segmentCharCount = SetInitialSegment(nextSeparatorIndex, length);
+                }
+                else
+                {
+                    ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
+                    if (doesNormalPathSegmentContinue)
+                    {
+                        doesNormalPathSegmentContinue = false;
+                        oldOffset = nextSeparatorIndex + 1;
+                        Unsafe.Add(ref lengthRef, segmentCount - 1) += length;
+                    }
+                    else if (textIndex + 2 == oldOffset)
+                    {
+                        oldOffset = nextSeparatorIndex + 1;
+                        Unsafe.Add(ref lengthRef, segmentCount - 1) += ++length;
+                    }
+                    else
+                    {
+                        Unsafe.Add(ref offsetRef, segmentCount) = nextSeparatorIndex + 1;
+                        Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                    }
+
+                    segmentCharCount += length;
+                }
+
+                if (nextSeparatorIndex < loopLowerLimit)
+                {
+                    textIndex = nextSeparatorIndex;
+                    return true;
+                }
+                else
+                {
+                    textIndex = nextSeparatorIndex - 1;
+                }
+            }
+            while (textIndex >= loopLowerLimit);
+            return false;
+        }
+
+        private int SetInitialSegment(int nextSeparatorIndex, int length)
+        {
+            segmentCount = 1;
+            offsetRef = nextSeparatorIndex + 1;
+            return lengthRef = length;
+        }
+
+        private int RarePathWithStartingSeparator(int textIndex, ulong separatorCurrent, ulong parent, int textIndexOffset)
+        {
+            if (BitSpan.GetBit(separatorCurrent, textIndex))
+            {
+                return textIndexOffset - 1 - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(~separatorCurrent, textIndexOffset - textIndex));
+            }
+            else if (BitSpan.GetBit(parent, textIndex))
+            {
+                ++parentCount;
+                return textIndex - 3;
+            }
+            else
+            {
+                return textIndex - 2;
+            }
+        }
+
+        #region Write
         public readonly void Write(ref char destination)
         {
             if (startsWithSeparator)
@@ -374,5 +674,29 @@ public static partial class ReversePath
 
             return ref destination;
         }
+        #endregion
+
+        #region Debug
+#if DEBUG
+        public override string ToString()
+        {
+            if (segmentCount == 0)
+            {
+                return "[]";
+            }
+
+            DefaultInterpolatedStringHandler handler = $"[\n";
+            for (int i = segmentCount - 1; i >= 0; i--)
+            {
+                var offset = Unsafe.Add(ref offsetRef, i);
+                var length = Unsafe.Add(ref lengthRef, i);
+                handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, offset), length)));
+                handler.AppendFormatted('\n');
+            }
+            handler.AppendFormatted(']');
+            return handler.ToString();
+        }
+#endif
+        #endregion
     }
 }
