@@ -14,7 +14,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Pcysl5edgo.RedudantPath\Pcysl5edgo.RedudantPath.csproj" />
+		<ProjectReference Include="..\Pcysl5edgo.RedundantPath\Pcysl5edgo.RedundantPath.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

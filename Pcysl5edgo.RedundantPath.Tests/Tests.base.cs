@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-
-namespace Pcysl5edgo.RedudantPath.Tests;
+namespace Pcysl5edgo.RedundantPath.Tests;
 
 public class RedundantSegmentsTestsBase
 {

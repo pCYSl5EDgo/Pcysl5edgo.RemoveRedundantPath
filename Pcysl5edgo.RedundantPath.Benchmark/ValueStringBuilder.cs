@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Pcysl5edgo.RemoveRedundantPath.Benchmark;
+namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 public ref struct ValueStringBuilder
 {

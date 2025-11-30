@@ -1,4 +1,4 @@
-namespace Pcysl5edgo.RemoveRedundantPath.Benchmark;
+namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 internal static class TestData
 {

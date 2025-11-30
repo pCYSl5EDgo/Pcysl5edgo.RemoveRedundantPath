@@ -1,8 +1,7 @@
-using Pcysl5edgo.RemoveRedundantPath.Benchmark;
 using System;
 using System.Diagnostics;
 
-namespace Pcysl5edgo.RemoveRedundantPath;
+namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 public static partial class RedundantSegmentHelper
 {

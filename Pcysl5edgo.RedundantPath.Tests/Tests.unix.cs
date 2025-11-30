@@ -1,6 +1,4 @@
-using Pcysl5edgo.RedudantPath;
-
-namespace Pcysl5edgo.RedudantPath.Tests;
+namespace Pcysl5edgo.RedundantPath.Tests;
 
 public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
 {
@@ -162,6 +160,32 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
             { @"/some/existing/path/without/relative/segments", @"/some/existing/path/without/relative/segments" },
             { @"/lte128/some/existing/path/without/relative/segments/with/a/lot/of/very/long/no/meaning/so/long/meaningless/hoge", @"/lte128/some/existing/path/without/relative/segments/with/a/lot/of/very/long/no/meaning/so/long/meaningless/hoge"},
             { @"/gt128/some/existing/path/without/relative/segments/with/a/lot/of/very/long/no/meaning/so/long/meaningless/hoge/fuga/piyo/to/test/some/of/usually/not/used/simd/branch/this/sentence/must/be/longer/than/128/characters/", @"/gt128/some/existing/path/without/relative/segments/with/a/lot/of/very/long/no/meaning/so/long/meaningless/hoge/fuga/piyo/to/test/some/of/usually/not/used/simd/branch/this/sentence/must/be/longer/than/128/characters/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_segment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/", @"/first_segment_length_128_ultimatelylong_very_very_very_first_segment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_segment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz", @"/first_segment_length_128_ultimatelylong_very_very_very_first_segment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            
+            // split by 64 chars
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/./ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/./ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/../ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/", @"/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/../ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz", @"/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/./", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/.", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/..", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/../", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/" },
+
+            // split by 63 chars
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/./ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/./ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/../ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/../ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/./", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/.", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/..", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg" },
+            { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/../", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/" },
         };
     #endregion
 }

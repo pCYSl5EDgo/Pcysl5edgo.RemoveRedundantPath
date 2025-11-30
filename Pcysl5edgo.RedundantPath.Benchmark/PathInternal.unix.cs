@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 
-namespace Pcysl5edgo.RemoveRedundantPath;
+namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 /// <summary>Contains public path helpers that are shared between many projects.</summary>
 public static partial class PathInternal

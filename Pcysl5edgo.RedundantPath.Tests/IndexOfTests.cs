@@ -1,4 +1,4 @@
-namespace Pcysl5edgo.RedudantPath.Tests;
+namespace Pcysl5edgo.RedundantPath.Tests;
 
 public class IndexOfTests
 {

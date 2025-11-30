@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Running;
 
-namespace Pcysl5edgo.RemoveRedundantPath.Benchmark;
+namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 public class Program
 {

@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
-namespace Pcysl5edgo.RedudantPath;
+namespace Pcysl5edgo.RedundantPath;
 
 public static class BitSpan
 {
@@ -18,38 +18,6 @@ public static class BitSpan
     public static bool GetBit(uint array, int bitOffset)
     {
         return ((array >>> bitOffset) & 1u) != default;
-    }
-
-    public static int TrailingOneCount(uint array, int bitOffset)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(bitOffset);
-        var temp = (~array) >>> bitOffset;
-        if (temp != default)
-        {
-            var answer = BitOperations.TrailingZeroCount(temp) + bitOffset;
-            if (answer < 32)
-            {
-                return answer;
-            }
-        }
-
-        return 32;
-    }
-
-    public static int TrailingOneCount(ulong array, int bitOffset)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(bitOffset);
-        var temp = (~array) >>> bitOffset;
-        if (temp != default)
-        {
-            var answer = BitOperations.TrailingZeroCount(temp) + bitOffset;
-            if (answer < 64)
-            {
-                return answer;
-            }
-        }
-
-        return 64;
     }
 
     public static int TrailingOneCount(ulong array, int bitLength, int bitOffset)
@@ -93,6 +61,60 @@ public static class BitSpan
                 span[i] = (bitArraySpan[i >>> 6] & (1ul << (i & 63))) != default ? '1' : '0';
             }
         });
+    }
+
+    public static uint Get(ref ushort source, out uint dot)
+    {
+        if (Vector512.IsHardwareAccelerated)
+        {
+            var v = Vector512.LoadUnsafe(ref source);
+            var compound = Vector512.Narrow(Vector512.Equals(v, Vector512.Create((ushort)'.')), Vector512.Equals(v, Vector512.Create((ushort)'/'))).ExtractMostSignificantBits();
+            dot = (uint)compound;
+            return (uint)(compound >>> 32);
+        }
+        else if (Vector256.IsHardwareAccelerated)
+        {
+            var v0 = Vector256.LoadUnsafe(ref source);
+            var v1 = Vector256.LoadUnsafe(ref source, 16);
+            var d = Vector256.Create((ushort)'.');
+            dot = Vector256.Narrow(Vector256.Equals(v0, d), Vector256.Equals(v1, d)).ExtractMostSignificantBits();
+            var s = Vector256.Create((ushort)'/');
+            return Vector256.Narrow(Vector256.Equals(v0, s), Vector256.Equals(v1, s)).ExtractMostSignificantBits();
+        }
+        else if (Vector128.IsHardwareAccelerated)
+        {
+            var v0 = Vector128.LoadUnsafe(ref source);
+            var v1 = Vector128.LoadUnsafe(ref source, 8);
+            var v2 = Vector128.LoadUnsafe(ref source, 16);
+            var v3 = Vector128.LoadUnsafe(ref source, 24);
+            var d = Vector128.Create((ushort)'.');
+            var d0 = Vector128.Narrow(Vector128.Equals(v0, d), Vector128.Equals(v1, d)).ExtractMostSignificantBits();
+            var d1 = Vector128.Narrow(Vector128.Equals(v2, d), Vector128.Equals(v3, d)).ExtractMostSignificantBits();
+            dot = d0 | (d1 << 16);
+            var s = Vector128.Create((ushort)'/');
+            var s0 = Vector128.Narrow(Vector128.Equals(v0, s), Vector128.Equals(v1, s)).ExtractMostSignificantBits();
+            var s1 = Vector128.Narrow(Vector128.Equals(v2, s), Vector128.Equals(v3, s)).ExtractMostSignificantBits();
+            return s0 | (s1 << 16);
+        }
+        else
+        {
+            uint _separator = default, _dot = default;
+            for (int i = 0; i < 32; ++i)
+            {
+                switch (Unsafe.Add(ref source, i))
+                {
+                    case '.':
+                        _dot |= 1u << i;
+                        break;
+                    case '/':
+                        _separator |= 1u << i;
+                        break;
+                }
+            }
+
+            dot = _dot;
+            return _separator;
+        }
     }
 
     public static uint Get(ref ushort source, out uint dot, int length)

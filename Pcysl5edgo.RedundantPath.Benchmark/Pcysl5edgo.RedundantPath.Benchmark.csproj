@@ -10,6 +10,6 @@
 		<Compile Remove="RedundantSegmentHelper.windows.cs" />
 		<PackageReference Include="BenchmarkDotNet" Version="0.15.2" />
 		<PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.0.36313.1" />
-		<ProjectReference Include="..\Pcysl5edgo.RedudantPath\Pcysl5edgo.RedudantPath.csproj" />
+		<ProjectReference Include="..\Pcysl5edgo.RedundantPath\Pcysl5edgo.RedundantPath.csproj" />
 	</ItemGroup>
 </Project>
