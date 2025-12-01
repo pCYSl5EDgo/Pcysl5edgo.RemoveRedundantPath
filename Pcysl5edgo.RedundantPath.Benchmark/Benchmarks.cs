@@ -24,7 +24,7 @@ public class FullPathBenchmarks
     [Benchmark]
     public string ReverseSimd()
     {
-        return ReversePath.RemoveRedundantSegments(Source);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source);
     }
 
     [Benchmark]
@@ -66,7 +66,7 @@ public class RelativePathBenchmarks
     [Benchmark]
     public string ReverseSimd()
     {
-        return ReversePath.RemoveRedundantSegments(Source);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source);
     }
 
     [Benchmark]

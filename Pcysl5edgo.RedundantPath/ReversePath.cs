@@ -39,7 +39,7 @@ public static partial class ReversePath
     }
 
     [SkipLocalsInit]
-    public static string RemoveRedundantSegments(string? path)
+    public static string RemoveRedundantSegmentsUnix(string? path)
     {
         if (path is null)
         {
@@ -122,5 +122,10 @@ public static partial class ReversePath
         {
             ArrayPool<int>.Shared.Return(rental);
         }
+    }
+
+    public static IAsyncEnumerable<char>? RemoveRedundantSegmentsWindows(string original)
+    {
+        throw new NotImplementedException();
     }
 }
