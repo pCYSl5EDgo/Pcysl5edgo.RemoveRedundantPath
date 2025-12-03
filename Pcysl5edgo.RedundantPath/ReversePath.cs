@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -124,8 +125,17 @@ public static partial class ReversePath
         }
     }
 
-    public static IAsyncEnumerable<char>? RemoveRedundantSegmentsWindows(string original)
+    public static string RemoveRedundantSegmentsWindows(string? path)
     {
+        if (path is null)
+        {
+            return "";
+        }
+        else if (path.Length <= 1)
+        {
+            return path[0] == '/' ? "\\" : path;
+        }
+
         throw new NotImplementedException();
     }
 }
