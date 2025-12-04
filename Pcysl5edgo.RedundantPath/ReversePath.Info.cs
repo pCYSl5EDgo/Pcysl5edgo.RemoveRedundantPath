@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -7,11 +8,12 @@ namespace Pcysl5edgo.RedundantPath;
 
 public static partial class ReversePath
 {
-    private ref struct Info
+    private ref struct UnixInfo : IDisposable
     {
         private readonly ref ushort textRef;
-        private readonly ref int offsetRef;
-        private readonly ref int lengthRef;
+        private ref (int Offset, int Length) segmentRef;
+        private int segmentCapacity;
+        private long[]? rentalArray;
         private int segmentCount;
         private readonly bool startsWithSeparator;
         private readonly bool endsWithSepartor;
@@ -19,16 +21,48 @@ public static partial class ReversePath
         private bool hasCurrent;
         public readonly bool IsSlashOnly => startsWithSeparator && segmentCount == 0;
 
-        public Info(ref ushort textRef, ref int offsetRef, ref int lengthRef, bool startsWithSeparator, bool endsWithSepartor)
+        public UnixInfo(ref ushort textRef, Span<ValueTuple<int, int>> span, bool startsWithSeparator, bool endsWithSepartor)
         {
             this.textRef = ref textRef;
-            this.offsetRef = ref offsetRef;
-            this.lengthRef = ref lengthRef;
+            segmentRef = ref MemoryMarshal.GetReference(span);
+            segmentCapacity = span.Length;
             this.startsWithSeparator = startsWithSeparator;
             this.endsWithSepartor = endsWithSepartor;
             segmentCount = 0;
             parentCount = 0;
             hasCurrent = false;
+        }
+
+        private void AddSegment(int offset, int length)
+        {
+            if (segmentCount >= segmentCapacity)
+            {
+                if (rentalArray is null)
+                {
+                    rentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)(segmentCount + 1)));
+                    Unsafe.CopyBlockUnaligned(ref Unsafe.As<ValueTuple<int, int>, byte>(ref segmentRef), ref Unsafe.As<long, byte>(ref MemoryMarshal.GetArrayDataReference(rentalArray)), (uint)(segmentCount * 8u));
+                    segmentCapacity = rentalArray.Length;
+                }
+                else
+                {
+                    var tempRentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)(segmentCount + 1)));
+                    Unsafe.CopyBlockUnaligned(ref Unsafe.As<ValueTuple<int, int>, byte>(ref segmentRef), ref Unsafe.As<long, byte>(ref MemoryMarshal.GetArrayDataReference(rentalArray)), (uint)(segmentCount * 8u));
+                    ArrayPool<long>.Shared.Return(rentalArray);
+                    rentalArray = tempRentalArray;
+                    segmentCapacity = rentalArray.Length;
+                }
+            }
+
+            Unsafe.Add(ref segmentRef, segmentCount++) = new(offset, length);
+        }
+
+        public void Dispose()
+        {
+            if (rentalArray is not null)
+            {
+                ArrayPool<long>.Shared.Return(rentalArray);
+                rentalArray = default;
+            }
         }
 
         // a/./a
@@ -81,23 +115,20 @@ public static partial class ReversePath
                     {
                         if (segmentCount == 0)
                         {
-                            offsetRef = textIndex + 1;
-                            lengthRef = segmentCharCount = mode;
-                            segmentCount = 1;
+                            AddSegment(textIndex + 1, segmentCharCount = mode);
                         }
                         else
                         {
-                            ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
-                            if (++textIndex + mode == oldOffset)
+                            ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                            if (++textIndex + mode == oldPair.Offset)
                             {
-                                oldOffset = textIndex;
-                                Unsafe.Add(ref lengthRef, segmentCount - 1) += ++mode;
+                                oldPair.Offset = textIndex;
+                                oldPair.Length += ++mode;
                                 segmentCharCount += mode;
                             }
                             else
                             {
-                                Unsafe.Add(ref offsetRef, segmentCount) = textIndex;
-                                Unsafe.Add(ref lengthRef, segmentCount++) = mode;
+                                Unsafe.Add(ref segmentRef, segmentCount++) = new(textIndex, mode);
                                 segmentCharCount += mode;
                             }
                         }
@@ -152,23 +183,20 @@ public static partial class ReversePath
                     hasCurrent = false;
                     if (segmentCount == 0)
                     {
-                        offsetRef = 0;
-                        lengthRef = segmentCharCount = mode;
-                        segmentCount = 1;
+                        AddSegment(0, segmentCharCount = mode);
                     }
                     else
                     {
-                        ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
-                        if (mode + 1 == oldOffset)
+                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                        if (mode + 1 == oldPair.Offset)
                         {
-                            oldOffset = 0;
-                            Unsafe.Add(ref lengthRef, segmentCount - 1) += mode + 1;
+                            oldPair.Offset = 0;
+                            oldPair.Length += mode + 1;
                             segmentCharCount += mode + 1;
                         }
                         else
                         {
-                            Unsafe.Add(ref offsetRef, segmentCount) = 0;
-                            Unsafe.Add(ref lengthRef, segmentCount++) = mode;
+                            Unsafe.Add(ref segmentRef, segmentCount++) = new(0, mode);
                             segmentCharCount += mode;
                         }
                     }
@@ -347,19 +375,19 @@ public static partial class ReversePath
             hasCurrent = false;
             if (segmentCount == 0)
             {
-                return SetInitialSegment(-1, length);
+                AddSegment(0, length);
+                return length;
             }
 
-            ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
-            if (length + 2 == oldOffset)
+            ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+            if (length + 2 == oldPair.Offset)
             {
-                oldOffset = 0;
-                Unsafe.Add(ref lengthRef, segmentCount - 1) += ++length;
+                oldPair.Offset = 0;
+                oldPair.Length += ++length;
             }
             else
             {
-                Unsafe.Add(ref offsetRef, segmentCount) = 0;
-                Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                AddSegment(0, length);
             }
 
             return segmentCharCount + length;
@@ -400,24 +428,21 @@ public static partial class ReversePath
                     hasCurrent = false;
                     if (segmentCount == 0)
                     {
-                        segmentCharCount = SetInitialSegment(nextSeparatorIndex, length);
+                        AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
                     }
                     else
                     {
-                        ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
-                        switch (oldOffset - textIndex - 1)
+                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                        var diff = oldPair.Offset - textIndex - 1;
+                        switch (diff)
                         {
                             case 0:
-                                oldOffset = nextSeparatorIndex + 1;
-                                Unsafe.Add(ref lengthRef, segmentCount - 1) = length;
-                                break;
                             case 1:
-                                oldOffset = nextSeparatorIndex + 1;
-                                Unsafe.Add(ref lengthRef, segmentCount - 1) = ++length;
+                                length += diff;
+                                oldPair = new(nextSeparatorIndex + 1, length);
                                 break;
                             default:
-                                Unsafe.Add(ref offsetRef, segmentCount) = nextSeparatorIndex + 1;
-                                Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                                AddSegment(nextSeparatorIndex + 1, length);
                                 break;
                         }
 
@@ -483,20 +508,19 @@ public static partial class ReversePath
                     hasCurrent = false;
                     if (segmentCount == 0)
                     {
-                        segmentCharCount = SetInitialSegment(nextSeparatorIndex, length);
+                        AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
                     }
                     else
                     {
-                        ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
-                        if (textIndex + 2 == oldOffset)
+                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                        if (textIndex + 2 == oldPair.Offset)
                         {
-                            oldOffset = nextSeparatorIndex + 1;
-                            Unsafe.Add(ref lengthRef, segmentCount - 1) += ++length;
+                            oldPair.Offset = nextSeparatorIndex + 1;
+                            oldPair.Length += ++length;
                         }
                         else
                         {
-                            Unsafe.Add(ref offsetRef, segmentCount) = nextSeparatorIndex + 1;
-                            Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                            AddSegment(nextSeparatorIndex + 1, length);
                         }
 
                         segmentCharCount += length;
@@ -544,24 +568,21 @@ public static partial class ReversePath
                     hasCurrent = false;
                     if (segmentCount == 0)
                     {
-                        segmentCharCount = SetInitialSegment(nextSeparatorIndex, length);
+                        AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
                     }
                     else
                     {
-                        ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
-                        switch (oldOffset - textIndex - 1)
+                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                        switch (oldPair.Offset - textIndex - 1)
                         {
                             case 0:
-                                oldOffset = nextSeparatorIndex + 1;
-                                Unsafe.Add(ref lengthRef, segmentCount - 1) = length;
+                                oldPair = new(nextSeparatorIndex + 1, length);
                                 break;
                             case 1:
-                                oldOffset = nextSeparatorIndex + 1;
-                                Unsafe.Add(ref lengthRef, segmentCount - 1) = ++length;
+                                oldPair = new(nextSeparatorIndex + 1, ++length);
                                 break;
                             default:
-                                Unsafe.Add(ref offsetRef, segmentCount) = nextSeparatorIndex + 1;
-                                Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                                AddSegment(nextSeparatorIndex + 1, length);
                                 break;
                         }
 
@@ -627,20 +648,19 @@ public static partial class ReversePath
                     hasCurrent = false;
                     if (segmentCount == 0)
                     {
-                        segmentCharCount = SetInitialSegment(nextSeparatorIndex, length);
+                        AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
                     }
                     else
                     {
-                        ref var oldOffset = ref Unsafe.Add(ref offsetRef, segmentCount - 1);
-                        if (textIndex + 2 == oldOffset)
+                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                        if (textIndex + 2 == oldPair.Offset)
                         {
-                            oldOffset = nextSeparatorIndex + 1;
-                            Unsafe.Add(ref lengthRef, segmentCount - 1) += ++length;
+                            oldPair.Offset = nextSeparatorIndex + 1;
+                            oldPair.Length += ++length;
                         }
                         else
                         {
-                            Unsafe.Add(ref offsetRef, segmentCount) = nextSeparatorIndex + 1;
-                            Unsafe.Add(ref lengthRef, segmentCount++) = length;
+                            AddSegment(nextSeparatorIndex + 1, length);
                         }
 
                         segmentCharCount += length;
@@ -651,13 +671,6 @@ public static partial class ReversePath
             }
             while (textIndex >= loopLowerLimit);
             return 0;
-        }
-
-        private int SetInitialSegment(int nextSeparatorIndex, int length)
-        {
-            segmentCount = 1;
-            offsetRef = nextSeparatorIndex + 1;
-            return lengthRef = length;
         }
 
         #region Write
@@ -701,7 +714,7 @@ public static partial class ReversePath
             }
         }
 
-        public static void Create(Span<char> span, Info arg) => arg.Write(ref MemoryMarshal.GetReference(span));
+        public static void Create(Span<char> span, UnixInfo arg) => arg.Write(ref MemoryMarshal.GetReference(span));
 
         private readonly ref char WriteParentSegments(ref char destination)
         {
@@ -721,9 +734,9 @@ public static partial class ReversePath
             for (int segmentIndex = segmentCount - 1; segmentIndex >= 0; --segmentIndex)
             {
                 destination = '/';
-                var charCount = Unsafe.Add(ref lengthRef, segmentIndex);
-                Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref destination, 1)), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, Unsafe.Add(ref offsetRef, segmentIndex))), (uint)(charCount << 1));
-                destination = ref Unsafe.Add(ref destination, charCount + 1);
+                var (Offset, Length) = Unsafe.Add(ref segmentRef, segmentIndex);
+                Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref destination, 1)), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, Offset)), (uint)(Length << 1));
+                destination = ref Unsafe.Add(ref destination, Length + 1);
             }
 
             return ref destination;
@@ -732,15 +745,15 @@ public static partial class ReversePath
         private readonly ref char WriteSegmentsWithoutStartingSeparator(ref char destination)
         {
             int segmentIndex = segmentCount - 1;
-            var charCount = Unsafe.Add(ref lengthRef, segmentIndex);
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref destination), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, Unsafe.Add(ref offsetRef, segmentIndex))), (uint)(charCount << 1));
-            destination = ref Unsafe.Add(ref destination, charCount);
+            var pair = Unsafe.Add(ref segmentRef, segmentIndex);
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref destination), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, pair.Offset)), (uint)(pair.Length << 1));
+            destination = ref Unsafe.Add(ref destination, pair.Length);
             for (segmentIndex = segmentCount - 2; segmentIndex >= 0; --segmentIndex)
             {
                 destination = '/';
-                charCount = Unsafe.Add(ref lengthRef, segmentIndex);
-                Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref destination, 1)), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, Unsafe.Add(ref offsetRef, segmentIndex))), (uint)(charCount << 1));
-                destination = ref Unsafe.Add(ref destination, charCount + 1);
+                pair = Unsafe.Add(ref segmentRef, segmentIndex);
+                Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref destination, 1)), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, pair.Offset)), (uint)(pair.Length << 1));
+                destination = ref Unsafe.Add(ref destination, pair.Length + 1);
             }
 
             return ref destination;
@@ -759,9 +772,8 @@ public static partial class ReversePath
             DefaultInterpolatedStringHandler handler = $"";
             for (int i = segmentCount - 1; ; i--)
             {
-                var offset = Unsafe.Add(ref offsetRef, i);
-                var length = Unsafe.Add(ref lengthRef, i);
-                handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, offset), length)));
+                var (Offset, Length) = Unsafe.Add(ref segmentRef, i);
+                handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, Offset), Length)));
                 if (i == 0)
                 {
                     break;
