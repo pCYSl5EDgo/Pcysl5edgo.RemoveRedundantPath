@@ -35,6 +35,11 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
     public void UnixReverseTest(string original, string expected)
     {
         var actual = ReversePath.RemoveRedundantSegmentsUnix(original);
+        if (ReferenceEquals(original, expected))
+        {
+            Assert.True(ReferenceEquals(expected, actual));
+        }
+
         Assert.Equal(expected, actual);
     }
 
