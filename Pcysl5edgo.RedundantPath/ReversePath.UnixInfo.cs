@@ -16,9 +16,10 @@ public static partial class ReversePath
         private long[]? rentalArray;
         private int segmentCount;
         private readonly bool startsWithSeparator;
-        private readonly bool endsWithSepartor;
-        private int parentCount;
-        private bool hasCurrent;
+        private readonly bool endsWithSeparator;
+        private int parentSegmentCount;
+        private bool hasLeadingCurrentSegment;
+        private readonly ref (int Offset, int Length) LastSegment => ref Unsafe.Add(ref segmentRef, segmentCount - 1);
         public readonly bool IsSlashOnly => startsWithSeparator && segmentCount == 0;
 
         public UnixInfo(ref ushort textRef, Span<ValueTuple<int, int>> span, bool startsWithSeparator, bool endsWithSepartor)
@@ -27,10 +28,10 @@ public static partial class ReversePath
             segmentRef = ref MemoryMarshal.GetReference(span);
             segmentCapacity = span.Length;
             this.startsWithSeparator = startsWithSeparator;
-            this.endsWithSepartor = endsWithSepartor;
+            this.endsWithSeparator = endsWithSepartor;
             segmentCount = 0;
-            parentCount = 0;
-            hasCurrent = false;
+            parentSegmentCount = 0;
+            hasLeadingCurrentSegment = false;
         }
 
         private void AddSegment(int offset, int length)
@@ -54,6 +55,24 @@ public static partial class ReversePath
             }
 
             Unsafe.Add(ref segmentRef, segmentCount++) = new(offset, length);
+        }
+
+        private int AddOrUniteSegment(int offset, int length, int expectedOffset)
+        {
+            hasLeadingCurrentSegment = false;
+            if (segmentCount > 0)
+            {
+                ref var last = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                if (last.Offset == expectedOffset)
+                {
+                    last.Offset = offset;
+                    last.Length += ++length;
+                    return length;
+                }
+            }
+
+            AddSegment(offset, length);
+            return length;
         }
 
         public void Dispose()
@@ -107,33 +126,13 @@ public static partial class ReversePath
                         continue;
                     }
 
-                    if (parentCount != 0)
+                    if (parentSegmentCount != 0)
                     {
-                        --parentCount;
+                        --parentSegmentCount;
                     }
                     else
                     {
-                        if (segmentCount == 0)
-                        {
-                            AddSegment(textIndex + 1, segmentCharCount = mode);
-                        }
-                        else
-                        {
-                            ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
-                            if (++textIndex + mode == oldPair.Offset)
-                            {
-                                oldPair.Offset = textIndex;
-                                oldPair.Length += ++mode;
-                                segmentCharCount += mode;
-                            }
-                            else
-                            {
-                                Unsafe.Add(ref segmentRef, segmentCount++) = new(textIndex, mode);
-                                segmentCharCount += mode;
-                            }
-                        }
-
-                        hasCurrent = false;
+                        segmentCharCount += AddOrUniteSegment(++textIndex, mode, textIndex + mode);
                     }
 
                     mode = 0;
@@ -149,7 +148,7 @@ public static partial class ReversePath
                 {
                     if (c == '/')
                     {
-                        hasCurrent = parentCount == 0;
+                        hasLeadingCurrentSegment = parentSegmentCount == 0;
                         mode = 0;
                     }
                     else
@@ -162,7 +161,7 @@ public static partial class ReversePath
                     Debug.Assert(mode == -2);
                     if (c == '/')
                     {
-                        ++parentCount;
+                        ++parentSegmentCount;
                         mode = 0;
                     }
                     else
@@ -174,44 +173,25 @@ public static partial class ReversePath
 
             if (mode > 0)
             {
-                if (parentCount > 0)
+                if (parentSegmentCount > 0)
                 {
-                    --parentCount;
+                    --parentSegmentCount;
                 }
                 else
                 {
-                    hasCurrent = false;
-                    if (segmentCount == 0)
-                    {
-                        AddSegment(0, segmentCharCount = mode);
-                    }
-                    else
-                    {
-                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
-                        if (mode + 1 == oldPair.Offset)
-                        {
-                            oldPair.Offset = 0;
-                            oldPair.Length += mode + 1;
-                            segmentCharCount += mode + 1;
-                        }
-                        else
-                        {
-                            Unsafe.Add(ref segmentRef, segmentCount++) = new(0, mode);
-                            segmentCharCount += mode;
-                        }
-                    }
+                    segmentCharCount += AddOrUniteSegment(0, mode, mode + 1);
                 }
             }
             else if (!startsWithSeparator)
             {
                 if (mode == -1)
                 {
-                    hasCurrent = true;
+                    hasLeadingCurrentSegment = true;
                 }
                 else
                 {
                     Debug.Assert(mode == -2);
-                    ++parentCount;
+                    ++parentSegmentCount;
                 }
             }
 
@@ -221,19 +201,19 @@ public static partial class ReversePath
         private int CalculateLength(int segmentCharCount)
         {
             Debug.Assert(segmentCount != 0 || segmentCharCount == 0);
-            var sum = segmentCount + segmentCharCount + (endsWithSepartor ? 1 : 0);
+            var sum = segmentCount + segmentCharCount + (endsWithSeparator ? 1 : 0);
             if (startsWithSeparator)
             {
                 return segmentCount == 0 ? 1 : sum;
             }
-            else if (parentCount == 0)
+            else if (parentSegmentCount == 0)
             {
-                return sum + (hasCurrent ? 1 : -1);
+                return sum + (hasLeadingCurrentSegment ? 1 : -1);
             }
             else
             {
-                hasCurrent = false;
-                return sum + (3 * parentCount) - 1;
+                hasLeadingCurrentSegment = false;
+                return sum + (3 * parentSegmentCount) - 1;
             }
         }
 
@@ -246,7 +226,7 @@ public static partial class ReversePath
             var sepDup = sep & (sepWall | (sep << 1) | 1u);
             if ((current | parent | sepDup) == 0)
             {
-                return textLength + 1 + (endsWithSepartor ? 1 : 0);
+                return textLength + 1 + (endsWithSeparator ? 1 : 0);
             }
 
             int segmentCharCount = 0;
@@ -270,7 +250,7 @@ public static partial class ReversePath
             var sepDup = sep & (sepWall | (sep << 1) | 1ul);
             if ((current | parent | sepDup) == 0)
             {
-                return textLength + 1 + (endsWithSepartor ? 1 : 0);
+                return textLength + 1 + (endsWithSeparator ? 1 : 0);
             }
 
             int segmentCharCount = 0;
@@ -297,7 +277,7 @@ public static partial class ReversePath
             var separatorWall = BitSpan.CalculateUpperBitWall32((textLength - 1) & BitMask) | (separatorCurrent >>> 1);
             var current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
             var parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSepartor ? OneBit << (textLength - 1) : default));
+            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textLength - 1) : default));
             var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             while (--batchIndex >= 0)
             {
@@ -337,7 +317,7 @@ public static partial class ReversePath
             var separatorWall = BitSpan.CalculateUpperBitWall64((textLength - 1) & BitMask) | (separatorCurrent >>> 1);
             var current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
             var parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSepartor ? OneBit << (textLength - 1) : default));
+            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textLength - 1) : default));
             var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             while (--batchIndex >= 0)
             {
@@ -366,31 +346,13 @@ public static partial class ReversePath
 
         private int ProcessLastContinuation(int segmentCharCount, int length)
         {
-            if (parentCount != 0)
+            if (parentSegmentCount != 0)
             {
-                --parentCount;
+                --parentSegmentCount;
                 return segmentCharCount;
             }
 
-            hasCurrent = false;
-            if (segmentCount == 0)
-            {
-                AddSegment(0, length);
-                return length;
-            }
-
-            ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
-            if (length + 2 == oldPair.Offset)
-            {
-                oldPair.Offset = 0;
-                oldPair.Length += ++length;
-            }
-            else
-            {
-                AddSegment(0, length);
-            }
-
-            return segmentCharCount + length;
+            return segmentCharCount + AddOrUniteSegment(0, length, length + 2);
         }
 
         private int ProcessLoop(ref int segmentCharCount, ref int textIndex, int continueLength, uint separator, uint separatorDuplicate, uint current, uint parent, int batchIndex)
@@ -419,27 +381,26 @@ public static partial class ReversePath
                     textIndex = nextSeparatorIndex;
                     return length;
                 }
-                else if (parentCount != 0)
+                else if (parentSegmentCount != 0)
                 {
-                    --parentCount;
+                    --parentSegmentCount;
                 }
                 else
                 {
-                    hasCurrent = false;
+                    hasLeadingCurrentSegment = false;
                     if (segmentCount == 0)
                     {
                         AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
                     }
                     else
                     {
-                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                        ref var oldPair = ref LastSegment;
                         var diff = oldPair.Offset - textIndex - 1;
                         switch (diff)
                         {
                             case 0:
                             case 1:
-                                length += diff;
-                                oldPair = new(nextSeparatorIndex + 1, length);
+                                oldPair = new(nextSeparatorIndex + 1, length += diff);
                                 break;
                             default:
                                 AddSegment(nextSeparatorIndex + 1, length);
@@ -457,7 +418,7 @@ public static partial class ReversePath
                 }
             }
 
-            if (parentCount == 0 && (parent | current | separatorDuplicate) == 0)
+            if (parentSegmentCount == 0 && (parent | current | separatorDuplicate) == 0)
             {
                 continueLength = (textIndex & (BitCount - 1)) + 1;
                 textIndex = loopLowerLimit - 1;
@@ -476,13 +437,13 @@ public static partial class ReversePath
                     }
                     else if (BitSpan.GetBit(parent, textIndex))
                     {
-                        ++parentCount;
+                        ++parentSegmentCount;
                         textIndex -= 3;
                     }
                     else
                     {
                         Debug.Assert(BitSpan.GetBit(current, textIndex));
-                        hasCurrent = parentCount == 0;
+                        hasLeadingCurrentSegment = parentSegmentCount == 0;
                         textIndex -= 2;
                     }
 
@@ -499,32 +460,13 @@ public static partial class ReversePath
                     textIndex = nextSeparatorIndex;
                     return length;
                 }
-                else if (parentCount != 0)
+                else if (parentSegmentCount != 0)
                 {
-                    --parentCount;
+                    --parentSegmentCount;
                 }
                 else
                 {
-                    hasCurrent = false;
-                    if (segmentCount == 0)
-                    {
-                        AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
-                    }
-                    else
-                    {
-                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
-                        if (textIndex + 2 == oldPair.Offset)
-                        {
-                            oldPair.Offset = nextSeparatorIndex + 1;
-                            oldPair.Length += ++length;
-                        }
-                        else
-                        {
-                            AddSegment(nextSeparatorIndex + 1, length);
-                        }
-
-                        segmentCharCount += length;
-                    }
+                    segmentCharCount += AddOrUniteSegment(nextSeparatorIndex + 1, length, textIndex + 2);
                 }
 
                 textIndex = nextSeparatorIndex - 1;
@@ -559,27 +501,26 @@ public static partial class ReversePath
                     textIndex = nextSeparatorIndex;
                     return length;
                 }
-                else if (parentCount != 0)
+                else if (parentSegmentCount != 0)
                 {
-                    --parentCount;
+                    --parentSegmentCount;
                 }
                 else
                 {
-                    hasCurrent = false;
+                    hasLeadingCurrentSegment = false;
                     if (segmentCount == 0)
                     {
                         AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
                     }
                     else
                     {
-                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
-                        switch (oldPair.Offset - textIndex - 1)
+                        ref var oldPair = ref LastSegment;
+                        var diff = oldPair.Offset - textIndex - 1;
+                        switch (diff)
                         {
                             case 0:
-                                oldPair = new(nextSeparatorIndex + 1, length);
-                                break;
                             case 1:
-                                oldPair = new(nextSeparatorIndex + 1, ++length);
+                                oldPair = new(nextSeparatorIndex + 1, length += diff);
                                 break;
                             default:
                                 AddSegment(nextSeparatorIndex + 1, length);
@@ -597,7 +538,7 @@ public static partial class ReversePath
                 }
             }
 
-            if (parentCount == 0 && (parent | current | separatorDuplicate) == 0)
+            if (parentSegmentCount == 0 && (parent | current | separatorDuplicate) == 0)
             {
                 continueLength = (textIndex & (BitCount - 1)) + 1;
                 textIndex = loopLowerLimit - 1;
@@ -616,13 +557,13 @@ public static partial class ReversePath
                     }
                     else if (BitSpan.GetBit(parent, textIndex))
                     {
-                        ++parentCount;
+                        ++parentSegmentCount;
                         textIndex -= 3;
                     }
                     else
                     {
                         Debug.Assert(BitSpan.GetBit(current, textIndex));
-                        hasCurrent = parentCount == 0;
+                        hasLeadingCurrentSegment = parentSegmentCount == 0;
                         textIndex -= 2;
                     }
 
@@ -639,32 +580,13 @@ public static partial class ReversePath
                     textIndex = nextSeparatorIndex;
                     return length;
                 }
-                else if (parentCount != 0)
+                else if (parentSegmentCount != 0)
                 {
-                    --parentCount;
+                    --parentSegmentCount;
                 }
                 else
                 {
-                    hasCurrent = false;
-                    if (segmentCount == 0)
-                    {
-                        AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
-                    }
-                    else
-                    {
-                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
-                        if (textIndex + 2 == oldPair.Offset)
-                        {
-                            oldPair.Offset = nextSeparatorIndex + 1;
-                            oldPair.Length += ++length;
-                        }
-                        else
-                        {
-                            AddSegment(nextSeparatorIndex + 1, length);
-                        }
-
-                        segmentCharCount += length;
-                    }
+                    segmentCharCount += AddOrUniteSegment(nextSeparatorIndex + 1, length, textIndex + 2);
                 }
 
                 textIndex = nextSeparatorIndex - 1;
@@ -674,89 +596,98 @@ public static partial class ReversePath
         }
 
         #region Write
-        public readonly void Write(ref char destination)
+        public readonly void Write(Span<char> destination)
         {
             if (startsWithSeparator)
             {
                 if (segmentCount == 0)
                 {
-                    destination = '/';
+                    destination[0] = '/';
                     return;
                 }
 
-                destination = ref WriteSegmentsWithStartingSeparator(ref destination);
+                destination = WriteSegmentsWithStartingSeparator(destination);
             }
-            else if (parentCount != 0)
+            else if (parentSegmentCount != 0)
             {
-                destination = ref WriteParentSegments(ref destination);
+                destination = WriteParentSegments(destination);
                 if (segmentCount != 0)
                 {
-                    destination = ref WriteSegmentsWithStartingSeparator(ref destination);
+                    destination = WriteSegmentsWithStartingSeparator(destination);
                 }
             }
-            else if (hasCurrent)
+            else if (hasLeadingCurrentSegment)
             {
-                destination = '.';
-                destination = ref Unsafe.Add(ref destination, 1);
-                if (segmentCount != 0)
+                destination[0] = '.';
+                if (segmentCount == 0)
                 {
-                    destination = ref WriteSegmentsWithStartingSeparator(ref destination);
+                    destination = destination[1..];
+                }
+                else
+                {
+                    destination = WriteSegmentsWithStartingSeparator(destination[1..]);
                 }
             }
             else if (segmentCount != 0)
             {
-                destination = ref WriteSegmentsWithoutStartingSeparator(ref destination);
+                destination = WriteSegmentsWithoutStartingSeparator(destination);
             }
 
-            if (endsWithSepartor)
+            if (endsWithSeparator)
             {
-                destination = '/';
+                destination[0] = '/';
+                destination = destination[1..];
             }
+
+            Debug.Assert(destination.IsEmpty);
         }
 
-        public static void Create(Span<char> span, UnixInfo arg) => arg.Write(ref MemoryMarshal.GetReference(span));
+        public static void Create(Span<char> span, UnixInfo arg) => arg.Write(span);
 
-        private readonly ref char WriteParentSegments(ref char destination)
+        private readonly Span<char> WriteParentSegments(Span<char> destination)
         {
-            Unsafe.Add(ref destination, 1) = destination = '.';
-            for (int i = parentCount - 2, offset = 2; i >= 0; --i, offset += 3)
+            destination[1] = destination[0] = '.';
+            for (int i = parentSegmentCount - 2, offset = 2; i >= 0; --i, offset += 3)
             {
-                Unsafe.Add(ref destination, offset) = '/';
-                Unsafe.Add(ref destination, offset + 1) = '.';
-                Unsafe.Add(ref destination, offset + 2) = '.';
+                destination[offset + 2] = '.';
+                destination[offset + 1] = '.';
+                destination[offset] = '/';
             }
 
-            return ref Unsafe.Add(ref destination, parentCount * 3 - 1);
+            return destination[(parentSegmentCount * 3 - 1)..];
         }
 
-        private readonly ref char WriteSegmentsWithStartingSeparator(ref char destination)
+        private readonly Span<char> WriteSegmentsWithStartingSeparator(Span<char> destination)
         {
             for (int segmentIndex = segmentCount - 1; segmentIndex >= 0; --segmentIndex)
             {
-                destination = '/';
-                var (Offset, Length) = Unsafe.Add(ref segmentRef, segmentIndex);
-                Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref destination, 1)), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, Offset)), (uint)(Length << 1));
-                destination = ref Unsafe.Add(ref destination, Length + 1);
+                destination[0] = '/';
+                var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+                var source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
+                source.CopyTo(destination[1..]);
+                destination = destination[(length + 1)..];
             }
 
-            return ref destination;
+            return destination;
         }
 
-        private readonly ref char WriteSegmentsWithoutStartingSeparator(ref char destination)
+        private readonly Span<char> WriteSegmentsWithoutStartingSeparator(Span<char> destination)
         {
             int segmentIndex = segmentCount - 1;
-            var pair = Unsafe.Add(ref segmentRef, segmentIndex);
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref destination), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, pair.Offset)), (uint)(pair.Length << 1));
-            destination = ref Unsafe.Add(ref destination, pair.Length);
+            var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+            var source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
+            source.CopyTo(destination);
+            destination = destination[length..];
             for (segmentIndex = segmentCount - 2; segmentIndex >= 0; --segmentIndex)
             {
-                destination = '/';
-                pair = Unsafe.Add(ref segmentRef, segmentIndex);
-                Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref destination, 1)), ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref textRef, pair.Offset)), (uint)(pair.Length << 1));
-                destination = ref Unsafe.Add(ref destination, pair.Length + 1);
+                destination[0] = '/';
+                (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+                source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
+                source.CopyTo(destination[1..]);
+                destination = destination[(length + 1)..];
             }
 
-            return ref destination;
+            return destination;
         }
         #endregion
 
@@ -770,11 +701,11 @@ public static partial class ReversePath
             }
 
             DefaultInterpolatedStringHandler handler = $"";
-            for (int i = segmentCount - 1; ; i--)
+            for (int segmentIndex = segmentCount - 1; ; segmentIndex--)
             {
-                var (Offset, Length) = Unsafe.Add(ref segmentRef, i);
-                handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, Offset), Length)));
-                if (i == 0)
+                var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+                handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, offset), length)));
+                if (segmentIndex == 0)
                 {
                     break;
                 }
