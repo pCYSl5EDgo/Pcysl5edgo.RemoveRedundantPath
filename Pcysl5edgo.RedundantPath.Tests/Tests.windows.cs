@@ -224,8 +224,8 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
     #region Device prefix
 
     // No matter what the string is, if it's preceded by a device prefix, we don't do anything
-    private static readonly string[] Suffixes = new string[]
-{
+    private static readonly string[] Suffixes =
+    [
         @"",
         @"\", @"\\",
         @"/", @"//", @"\/", @"/\",
@@ -239,14 +239,14 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         @"\..\..", @"\\..\\..", @"\..\..\", @"\\..\\..\\",
         @"\.\..", @"\\.\\..", @"\.\..\", @"\\.\\..\\",
         @"\..\.", @"\\..\\.", @"\..\.\", @"\\..\\.\\"
-    };
-    private static readonly string[] ExtendedPrefixes = new string[]
-    {
+    ];
+    private static readonly string[] ExtendedPrefixes =
+    [
         @"\\?\",
         @"\??\"
-    };
-    private static readonly string[] TestPaths_DevicePrefix = new string[]
-    {
+    ];
+    private static readonly string[] TestPaths_DevicePrefix =
+    [
         @"C",
         @"C:",
         @"C:\",
@@ -257,15 +257,15 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         @"C:A",
         @"C:A\folder",
         @"C:A/folder",
-    };
+    ];
     public static IEnumerable<object[]> MemberData_DevicePrefix =>
         from prefix in ExtendedPrefixes
         from s in TestPaths_DevicePrefix
         from suffix in Suffixes
         select new object[] { prefix + s + suffix };
 
-    private static readonly string[] TestPaths_DevicePrefix_UNC = new string[]
-    {
+    private static readonly string[] TestPaths_DevicePrefix_UNC =
+    [
         @"UNC",
         @"UNC\Server",
         @"UNC/Server",
@@ -273,7 +273,7 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         @"UNC/Server/Share",
         @"UNC\Server\Share\folder",
         @"UNC/Server/Share/folder",
-    };
+    ];
     public static IEnumerable<object[]> MemberData_DevicePrefix_UNC =>
         from prefix in ExtendedPrefixes
         from s in TestPaths_DevicePrefix_UNC
@@ -284,15 +284,15 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 
     #region No redundancy
 
-    private static readonly string[] TestPaths_NoRedundancy = new string[]
-    {
+    private static readonly string[] TestPaths_NoRedundancy =
+    [
         @"folder",
         @"folder\",
         @"folder\file.txt",
         @"folder\subfolder",
         @"folder\subfolder\",
         @"folder\subfolder\file.txt"
-    };
+    ];
     public static IEnumerable<object[]> MemberData_Qualified_NoRedundancy_DriveAndRoot =>
         from s in TestPaths_NoRedundancy
         select new object[] { Prefix_Windows_Drive_Root + s };
@@ -325,7 +325,7 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 
     #region Single dot
 
-    private static readonly List<Tuple<string, string, string, string>> TestPaths_Redundant_SingleDot = new List<Tuple<string, string, string, string>>
+    private static readonly List<Tuple<string, string, string, string>> TestPaths_Redundant_SingleDot = new()
     {
         // The original and qualified strings must get the root string prefixed
         // Original | Qualified | Unqualified | Device prefix
@@ -436,7 +436,7 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 
     #region Double dot
 
-    private static readonly List<Tuple<string, string, string, string>> TestPaths_Redundant_DoubleDot = new List<Tuple<string, string, string, string>>
+    private static readonly List<Tuple<string, string, string, string>> TestPaths_Redundant_DoubleDot = new()
     {
         // The original and qualified strings must get the root string prefixed
         // Original | Qualified | Unqualified | Device prefix
@@ -554,7 +554,7 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 
     #region Combined: single + double dot
 
-    private static readonly List<Tuple<string, string, string, string>> TestPaths_Redundant_Combined = new List<Tuple<string, string, string, string>>
+    private static readonly List<Tuple<string, string, string, string>> TestPaths_Redundant_Combined = new()
     {
         // The original and qualified strings must get the root string prefixed
         // Original | Qualified | Unqualified | Device prefix
@@ -635,7 +635,7 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 
     #region Edge cases: more than two dots, paths with trailing dot
 
-    private static readonly List<Tuple<string, string, string, string>> TestPaths_NoRedundancy_EdgeCases = new List<Tuple<string, string, string, string>>
+    private static readonly List<Tuple<string, string, string, string>> TestPaths_NoRedundancy_EdgeCases = new()
     {
         // Original | Qualified | Unqualified | Device prefix
         
@@ -701,7 +701,7 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 
     #region Edge cases + single dot
 
-    private static readonly List<Tuple<string, string, string, string, string>> TestPaths_Redundant_SingleDot_EdgeCases = new List<Tuple<string, string, string, string, string>>
+    private static readonly List<Tuple<string, string, string, string, string>> TestPaths_Redundant_SingleDot_EdgeCases = new()
     {
         // The original and qualified strings must get the root string prefixed
         // Original | Qualified | Unqualified | Device unrooted | Device rooted
@@ -798,7 +798,7 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 
     #region Edge cases + double dot
 
-    private static readonly List<Tuple<string, string, string, string, string>> TestPaths_Redundant_DoubleDot_EdgeCases = new List<Tuple<string, string, string, string, string>>
+    private static readonly List<Tuple<string, string, string, string, string>> TestPaths_Redundant_DoubleDot_EdgeCases = new()
     {
         // Original | Qualified | Unqualified | Device prefix unrooted | Device prefix rooted
         // Folder with 3 dots
