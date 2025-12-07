@@ -226,7 +226,7 @@ public static partial class ReversePath
             var sepDup = sep & (sepWall | (sep << 1) | 1u);
             if ((current | parent | sepDup) == 0)
             {
-                return textLength + 1 + (endsWithSeparator ? 1 : 0);
+                return textLength + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
             }
 
             int segmentCharCount = 0;
@@ -250,7 +250,7 @@ public static partial class ReversePath
             var sepDup = sep & (sepWall | (sep << 1) | 1ul);
             if ((current | parent | sepDup) == 0)
             {
-                return textLength + 1 + (endsWithSeparator ? 1 : 0);
+                return textLength + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
             }
 
             int segmentCharCount = 0;
