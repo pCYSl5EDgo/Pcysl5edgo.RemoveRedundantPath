@@ -41,6 +41,7 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
         }
 
         Assert.Equal(expected, actual);
+        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnix(actual)));
     }
 
     #endregion
