@@ -3,13 +3,21 @@
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<OutputType>Exe</OutputType>
+		<DefineConstants Condition="'$(OS)' == 'Windows_NT'">WINDOWS_NT</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Compile Remove="PathInternal.windows.cs" />
-		<Compile Remove="RedundantSegmentHelper.windows.cs" />
+		<Compile Remove="*.windows.cs" />
+		<Compile Remove="*.unix.cs" />
 		<PackageReference Include="BenchmarkDotNet" Version="0.15.2" />
 		<PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.0.36313.1" />
 		<ProjectReference Include="..\Pcysl5edgo.RedundantPath\Pcysl5edgo.RedundantPath.csproj" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+		<Compile Include="*.windows.cs" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+		<Compile Include="*.unix.cs" />
 	</ItemGroup>
 </Project>
