@@ -11,22 +11,20 @@ public static partial class ReversePath
     private ref struct UnixInfo : IDisposable
     {
         private readonly ref ushort textRef;
-        private ref (int Offset, int Length) segmentRef;
-        private int segmentCapacity;
+        private Span<(int Offset, int Length)> segmentSpan;
         private long[]? rentalArray;
         private int segmentCount;
         private readonly bool startsWithSeparator;
         private readonly bool endsWithSeparator;
         private int parentSegmentCount;
         private bool hasLeadingCurrentSegment;
-        private readonly ref (int Offset, int Length) LastSegment => ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+        private readonly ref (int Offset, int Length) LastSegment => ref segmentSpan[segmentCount - 1];
         public readonly bool IsSlashOnly => startsWithSeparator && segmentCount == 0;
 
-        public UnixInfo(ref ushort textRef, Span<ValueTuple<int, int>> span, bool startsWithSeparator, bool endsWithSepartor)
+        public UnixInfo(ref ushort textRef, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSepartor)
         {
             this.textRef = ref textRef;
-            segmentRef = ref MemoryMarshal.GetReference(span);
-            segmentCapacity = span.Length;
+            this.segmentSpan = segmentSpan;
             this.startsWithSeparator = startsWithSeparator;
             this.endsWithSeparator = endsWithSepartor;
             segmentCount = 0;
@@ -36,25 +34,27 @@ public static partial class ReversePath
 
         private void AddSegment(int offset, int length)
         {
-            if (segmentCount >= segmentCapacity)
+            if (++segmentCount > segmentSpan.Length)
             {
                 if (rentalArray is null)
                 {
-                    rentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)(segmentCount + 1)));
-                    Unsafe.CopyBlockUnaligned(ref Unsafe.As<ValueTuple<int, int>, byte>(ref segmentRef), ref Unsafe.As<long, byte>(ref MemoryMarshal.GetArrayDataReference(rentalArray)), (uint)(segmentCount * 8u));
-                    segmentCapacity = rentalArray.Length;
+                    rentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
+                    var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(rentalArray.AsSpan());
+                    segmentSpan.CopyTo(temp);
+                    segmentSpan = temp;
                 }
                 else
                 {
-                    var tempRentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)(segmentCount + 1)));
-                    Unsafe.CopyBlockUnaligned(ref Unsafe.As<ValueTuple<int, int>, byte>(ref segmentRef), ref Unsafe.As<long, byte>(ref MemoryMarshal.GetArrayDataReference(rentalArray)), (uint)(segmentCount * 8u));
+                    var tempRentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
+                    var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(tempRentalArray.AsSpan());
+                    segmentSpan.CopyTo(temp);
                     ArrayPool<long>.Shared.Return(rentalArray);
                     rentalArray = tempRentalArray;
-                    segmentCapacity = rentalArray.Length;
+                    segmentSpan = temp;
                 }
             }
 
-            Unsafe.Add(ref segmentRef, segmentCount++) = new(offset, length);
+            segmentSpan[segmentCount - 1] = new(offset, length);
         }
 
         private int AddOrUniteSegment(int offset, int length, int expectedOffset)
@@ -62,7 +62,7 @@ public static partial class ReversePath
             hasLeadingCurrentSegment = false;
             if (segmentCount > 0)
             {
-                ref var last = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
+                ref var last = ref segmentSpan[segmentCount - 1];
                 if (last.Offset == expectedOffset)
                 {
                     last.Offset = offset;
@@ -662,7 +662,7 @@ public static partial class ReversePath
             for (int segmentIndex = segmentCount - 1; segmentIndex >= 0; --segmentIndex)
             {
                 destination[0] = '/';
-                var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+                var (offset, length) = segmentSpan[segmentIndex];
                 var source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
                 source.CopyTo(destination[1..]);
                 destination = destination[(length + 1)..];
@@ -674,14 +674,14 @@ public static partial class ReversePath
         private readonly Span<char> WriteSegmentsWithoutStartingSeparator(Span<char> destination)
         {
             int segmentIndex = segmentCount - 1;
-            var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+            var (offset, length) = segmentSpan[segmentIndex];
             var source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
             source.CopyTo(destination);
             destination = destination[length..];
             for (segmentIndex = segmentCount - 2; segmentIndex >= 0; --segmentIndex)
             {
                 destination[0] = '/';
-                (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+                (offset, length) = segmentSpan[segmentIndex];
                 source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
                 source.CopyTo(destination[1..]);
                 destination = destination[(length + 1)..];
@@ -703,7 +703,7 @@ public static partial class ReversePath
             DefaultInterpolatedStringHandler handler = $"";
             for (int segmentIndex = segmentCount - 1; ; segmentIndex--)
             {
-                var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
+                var (offset, length) = segmentSpan[segmentIndex];
                 handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, offset), length)));
                 if (segmentIndex == 0)
                 {

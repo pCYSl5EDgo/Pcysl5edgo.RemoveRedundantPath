@@ -29,15 +29,18 @@ public static partial class ReversePath
         var textLength = span.Length - (startsWithSeparator ? 1 : 0) - (endsWithSeparator ? 1 : 0);
         var segmentCount = UnixInfo.CalculateMaxSegmentCount(textLength);
         var _ = (stackalloc ValueTuple<int, int>[segmentCount < 8 ? segmentCount : 8]);
+        string answer;
         var info = new UnixInfo(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref text, startsWithSeparator ? 1 : 0)), _, startsWithSeparator, endsWithSeparator);
         try
         {
-            return ToStringForceEach(path, textLength, ref info);
+            answer = ToStringForceEach(path, textLength, ref info);
         }
         finally
         {
             info.Dispose();
         }
+     
+        return answer;
     }
 
     [SkipLocalsInit]
@@ -77,13 +80,22 @@ public static partial class ReversePath
     private static string ToStringForceEach(string path, int textLength, ref UnixInfo info)
     {
         var answerLength = info.InitializeEach(textLength);
-        return answerLength == path.Length
-            ? path
-            : answerLength <= 0
-                ? ""
-                : info.IsSlashOnly
-                    ? "/"
-                    : string.Create(answerLength, info, UnixInfo.Create);
+        if (answerLength >= path.Length)
+        {
+            return path;
+        }
+        else if (answerLength <= 0)
+        {
+            return "";
+        }
+        else if (info.IsSlashOnly)
+        {
+            return "/";
+        }
+        else
+        {
+            return string.Create(answerLength, info, UnixInfo.Create);
+        }
     }
 
     private static string ToString(string path, int textLength, ref UnixInfo info)
