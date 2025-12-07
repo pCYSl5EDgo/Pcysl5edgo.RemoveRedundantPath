@@ -6,11 +6,14 @@ on:
     branches: [ "master" ]
 jobs:
   benchmark:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.1
 
       - name: Restore dependencies
         run: dotnet restore
@@ -23,9 +26,8 @@ jobs:
           dotnet run -c Release --project Pcysl5edgo.RedundantPath.Benchmark/Pcysl5edgo.RedundantPath.Benchmark.csproj
           
       - name: Upload Benchmark Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
-          name: benchmark-results
+          name: benchmark-results-${{ matrix.os }}
           path: |
             **/BenchmarkDotNet.Artifacts/**
-          retention-days: 7
