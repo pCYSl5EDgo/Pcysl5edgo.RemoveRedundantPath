@@ -100,11 +100,11 @@ public static partial class ReversePath
 
     public static string RemoveRedundantSegmentsWindows(string? path)
     {
-        if (path is null)
+        if (path is null || path.Length == 0)
         {
             return "";
         }
-        else if (path.Length <= 1)
+        else if (path.Length == 1)
         {
             return path[0] == '/' ? "\\" : path;
         }
@@ -189,14 +189,15 @@ public static partial class ReversePath
         var firstNotSeparatorIndex = span.IndexOfAnyExcept(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (firstNotSeparatorIndex >= 0)
         {
+            startsWithSeparator |= firstNotSeparatorIndex > 0;
             span = span[firstNotSeparatorIndex..];
         }
         else
         {
+            startsWithSeparator |= !span.IsEmpty;
             span = [];
         }
 
-        startsWithSeparator |= firstNotSeparatorIndex > 0;
         bool endsWithSeparator;
         if (span.IsEmpty)
         {
@@ -215,7 +216,7 @@ public static partial class ReversePath
         try
         {
             var answerLength = info.Initialize(span.Length, ref hasAltSeparator);
-            if (!hasAltSeparator && answerLength == path.Length)
+            if (!hasAltSeparator && answerLength >= path.Length)
             {
                 return path;
             }
