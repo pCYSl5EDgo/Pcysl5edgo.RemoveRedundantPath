@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Pcysl5edgo.RedundantPath.Benchmark;
 
-[LongRunJob]
+[MediumRunJob]
 [BenchmarkCategory("RelativePath")]
 public class RelativePathBenchmarks
 {
