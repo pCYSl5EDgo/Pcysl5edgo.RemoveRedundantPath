@@ -26,7 +26,7 @@ public static partial class ReversePath
             this.textRef = ref textRef;
             this.segmentSpan = segmentSpan;
             this.startsWithSeparator = startsWithSeparator;
-            this.endsWithSeparator = endsWithSepartor;
+            endsWithSeparator = endsWithSepartor;
             segmentCount = 0;
             parentSegmentCount = 0;
             hasLeadingCurrentSegment = false;
