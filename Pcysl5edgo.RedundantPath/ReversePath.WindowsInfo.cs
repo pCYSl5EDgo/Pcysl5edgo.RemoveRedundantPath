@@ -622,6 +622,27 @@ public static partial class ReversePath
             return span[(volume.Length + 1)..];
         }
 
+        public static byte CalculateDrivePrefix(ref ReadOnlySpan<char> span, ref bool hasBeenChanged)
+        {
+            if (span.Length >= 2 && span[1] == ':')
+            {
+                var diff = span[0] - 'A';
+                if ((uint)diff < 26u)
+                {
+                    span = span[2..];
+                    return (byte)(diff + 1);
+                }
+                else if ((uint)(diff - 32) < 26u)
+                {
+                    hasBeenChanged = true;
+                    span = span[2..];
+                    return (byte)(diff - 31);
+                }
+            }
+
+            return default;
+        }
+
         #region Debug
 #if DEBUG
         public override readonly string ToString()
