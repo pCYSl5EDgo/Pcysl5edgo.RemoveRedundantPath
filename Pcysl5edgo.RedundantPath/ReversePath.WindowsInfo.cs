@@ -81,12 +81,15 @@ public static partial class ReversePath
         {
             if (!Vector128.IsHardwareAccelerated && !Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated)
             {
-                return InitializeEach(textLength, ref hasAltSeparator);
+                goto FALLBACK;
             }
             else if (textLength <= 32)
             {
                 return InitializeSimdLTE32(textLength, ref hasAltSeparator);
             }
+
+        FALLBACK:
+            return InitializeEach(textLength, ref hasAltSeparator);
         }
 
         private int InitializeSimdLTE32(int textLength, ref bool hasAltSeparator)
