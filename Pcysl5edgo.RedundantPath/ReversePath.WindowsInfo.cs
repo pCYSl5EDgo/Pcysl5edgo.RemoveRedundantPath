@@ -77,7 +77,7 @@ public static partial class ReversePath
             }
         }
 
-        public int Initialize(int textLength, ref bool hasAltSeparator)
+        public int Initialize(int textLength, ref bool hasBeenChanged)
         {
             if (!Vector128.IsHardwareAccelerated && !Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated)
             {
@@ -85,11 +85,11 @@ public static partial class ReversePath
             }
             else if (textLength <= 32)
             {
-                return InitializeSimdLTE32(textLength, ref hasAltSeparator);
+                goto FALLBACK;
             }
 
         FALLBACK:
-            return InitializeEach(textLength, ref hasAltSeparator);
+            return InitializeEach(textLength, ref hasBeenChanged);
         }
 
         private int InitializeSimdLTE32(int textLength, ref bool hasAltSeparator)
@@ -97,7 +97,7 @@ public static partial class ReversePath
             throw new NotImplementedException();
         }
 
-        public int InitializeEach(int textLength, ref bool hasAltSeparator)
+        public int InitializeEach(int textLength, ref bool hasBeenChanged)
         {
             bool isPreviousSeparatorCanonical = false;
             int mode = 0, segmentCharCount = 0;
@@ -118,7 +118,7 @@ public static partial class ReversePath
                                 segmentCharCount += AddOrUniteSegment(textIndex + 1, mode, isPreviousSeparatorCanonical ? (textIndex + mode + 2) : -1);
                             }
 
-                            hasAltSeparator = true;
+                            hasBeenChanged = true;
                             isPreviousSeparatorCanonical = false;
                             mode = 0;
                             break;
@@ -146,7 +146,7 @@ public static partial class ReversePath
                     {
                         case '/':
                         case '\\':
-                            hasAltSeparator = true;
+                            hasBeenChanged = true;
                             break;
                         case '.':
                             mode = -1;
@@ -162,7 +162,7 @@ public static partial class ReversePath
                     {
                         case '/':
                             ProcessDotSequence(isPreviousSeparatorCanonical, mode, ref segmentCharCount, textIndex);
-                            hasAltSeparator = true;
+                            hasBeenChanged = true;
                             isPreviousSeparatorCanonical = false;
                             mode = 0;
                             break;
@@ -219,6 +219,12 @@ public static partial class ReversePath
                 }
             }
 
+            hasBeenChanged |= CleanUp();
+            return CalculateLength(segmentCharCount);
+        }
+
+        private bool CleanUp()
+        {
             if (prefix == Prefix.DevicePathQuestion || prefix == Prefix.DevicePathDot)
             {
                 hasLeadingCurrentSegment = false;
@@ -243,8 +249,7 @@ public static partial class ReversePath
                 endsWithSeparator = false;
             }
 
-            hasAltSeparator |= segmentCount > 1;
-            return CalculateLength(segmentCharCount);
+            return segmentCount > 1;
         }
 
         private void ProcessDotSequence(bool isPreviousSeparatorCanonical, int mode, ref int segmentCharCount, int textIndex)

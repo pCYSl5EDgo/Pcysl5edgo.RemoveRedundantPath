@@ -38,6 +38,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
 {
     #region Tests
 
+    [Fact]
+    public void DoubleSlash()
+    {
+        TestWindows("//", @"\\");
+    }
+
     #region Qualified NoRedundancy
 
     [Theory]

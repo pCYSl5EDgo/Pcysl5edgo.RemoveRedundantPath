@@ -39,7 +39,7 @@ public static partial class ReversePath
         {
             info.Dispose();
         }
-     
+
         return answer;
     }
 
@@ -139,11 +139,20 @@ public static partial class ReversePath
             case WindowsInfo.Prefix.DevicePathQuestionUnc:
                 {
                     var index = span.IndexOfAny('\\', '/');
-                    server = span[..index];
-                    span = span[(index + 1)..];
-                    index = span.IndexOfAny('\\', '/');
-                    volume = span[..index];
-                    span = span[(index + 1)..];
+                    if (index >= 0)
+                    {
+                        server = span[..index];
+                        span = span[(index + 1)..];
+                        index = span.IndexOfAny('\\', '/');
+                        volume = span[..index];
+                        span = span[(index + 1)..];
+                    }
+                    else
+                    {
+                        server = span;
+                        span = [];
+                    }
+
                     startsWithSeparator = true;
                 }
                 break;
