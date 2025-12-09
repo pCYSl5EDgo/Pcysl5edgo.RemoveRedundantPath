@@ -24,7 +24,7 @@ public static partial class ReversePath
         private bool hasLeadingCurrentSegment;
 
         private readonly bool startsWithSeparator;
-        private bool endsWithSeparator;
+        private readonly bool endsWithSeparator;
         /// <summary>
         /// 0: None
         /// 1: \\
@@ -51,7 +51,7 @@ public static partial class ReversePath
         /// 1-27 means A-Z.
         /// </summary>
         private readonly byte drivePrefix;
-        private readonly bool ShouldPreserveTrailingDots => prefix > Prefix.Unc;
+        public static bool ShouldPreserveTrailingDots(Prefix prefix) => prefix > Prefix.Unc;
 
         public WindowsInfo(ref ushort textRef, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSeparator, Prefix prefix, byte drivePrefix, ReadOnlySpan<char> uncServer, ReadOnlySpan<char> uncVolume)
         {
@@ -92,7 +92,7 @@ public static partial class ReversePath
             return InitializeEach(textLength, ref hasBeenChanged);
         }
 
-        private int InitializeSimdLTE32(int textLength, ref bool hasAltSeparator)
+        private int InitializeSimdLTE32(int textLength, ref bool hasBeenChanged)
         {
             throw new NotImplementedException();
         }
@@ -175,7 +175,7 @@ public static partial class ReversePath
                             --mode;
                             break;
                         default:
-                            mode = 1 - (ShouldPreserveTrailingDots ? mode : 0);
+                            mode = 1 - (ShouldPreserveTrailingDots(prefix) ? mode : 0);
                             break;
                     }
                 }
@@ -201,7 +201,7 @@ public static partial class ReversePath
                 else
                 {
                     hasLeadingCurrentSegment = false;
-                    if (ShouldPreserveTrailingDots || endsWithSeparator || segmentCount != 0)
+                    if (ShouldPreserveTrailingDots(prefix) || endsWithSeparator || segmentCount != 0)
                     {
                         segmentCharCount += AddOrUniteSegment(0, -mode, isPreviousSeparatorCanonical ? 1 - mode : -1);
                     }
@@ -238,15 +238,10 @@ public static partial class ReversePath
             {
                 parentSegmentCount = 0;
                 hasLeadingCurrentSegment = false;
-                endsWithSeparator &= segmentCount != 0;
             }
             else if (parentSegmentCount != 0)
             {
                 hasLeadingCurrentSegment = false;
-            }
-            else if (!hasLeadingCurrentSegment && segmentCount == 0)
-            {
-                endsWithSeparator = false;
             }
 
             return segmentCount > 1;
@@ -264,14 +259,7 @@ public static partial class ReversePath
                     break;
                 default:
                     hasLeadingCurrentSegment = false;
-                    if (segmentCount != 0 || endsWithSeparator || ShouldPreserveTrailingDots)
-                    {
-                        segmentCharCount += AddOrUniteSegment(textIndex + 1, -mode, isPreviousSeparatorCanonical ? (textIndex - mode + 1) : -1);
-                    }
-                    else
-                    {
-                        endsWithSeparator = true;
-                    }
+                    segmentCharCount += AddOrUniteSegment(textIndex + 1, -mode, isPreviousSeparatorCanonical ? (textIndex - mode + 1) : -1);
                     break;
             }
         }
@@ -577,7 +565,7 @@ public static partial class ReversePath
             }
 
         END:
-            if (endsWithSeparator)
+            if (endsWithSeparator && (segmentCount != 0 || parentSegmentCount != 0 || hasLeadingCurrentSegment))
             {
                 span[0] = '\\';
                 span = span[1..];

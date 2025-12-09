@@ -144,15 +144,26 @@ public static partial class ReversePath
                 break;
         }
 
+        const string separators = @"\/";
         {
             var oldLength = span.Length;
-            span = span.TrimStart(@"\/");
+            span = span.TrimStart(separators);
             startsWithSeparator |= span.Length != oldLength;
         }
         {
             var oldLength = span.Length;
-            span = span.TrimEnd(@"\/");
+            span = span.TrimEnd(separators);
             endsWithSeparator = span.Length != oldLength;
+        }
+
+        if (!endsWithSeparator && !WindowsInfo.ShouldPreserveTrailingDots(prefix))
+        {
+            var trimmed = span.TrimEnd('.');
+            if (span.Length - trimmed.Length >= 3)
+            {
+                span = trimmed.TrimEnd(separators);
+                endsWithSeparator = span.Length != trimmed.Length;
+            }
         }
 
         var maxSegmentCapacity = ((span.Length + 3) >> 2) << 1;
