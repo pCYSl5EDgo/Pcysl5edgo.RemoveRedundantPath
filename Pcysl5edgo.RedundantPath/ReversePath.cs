@@ -23,16 +23,20 @@ public static partial class ReversePath
         }
 
         var span = path.AsSpan();
-        ref var text = ref MemoryMarshal.GetReference(span);
-        var startsWithSeparator = text == '/';
-        var endsWithSeparator = Unsafe.Add(ref text, span.Length - 1) == '/';
-        var textLength = span.Length - (startsWithSeparator ? 1 : 0) - (endsWithSeparator ? 1 : 0);
-        var segmentCount = UnixInfo.CalculateMaxSegmentCount(textLength);
+        span = span.TrimStart('/');
+        bool startsWithSeparator = span.Length != path.Length, endsWithSeparator;
+        {
+            var oldLength = span.Length;
+            span = span.TrimEnd('/');
+            endsWithSeparator = span.Length != oldLength;
+        }
+
+        var segmentCount = UnixInfo.CalculateMaxSegmentCount(span.Length);
         var _ = (stackalloc ValueTuple<int, int>[segmentCount < 8 ? segmentCount : 8]);
-        var info = new UnixInfo(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref text, startsWithSeparator ? 1 : 0)), _, startsWithSeparator, endsWithSeparator);
+        var info = new UnixInfo(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span)), _, startsWithSeparator, endsWithSeparator);
         try
         {
-            var answerLength = forceEach ? info.InitializeEach(textLength) : info.Initialize(textLength);
+            var answerLength = forceEach ? info.InitializeEach(span.Length) : info.Initialize(span.Length);
             if (answerLength >= path.Length)
             {
                 return path;
@@ -75,7 +79,7 @@ public static partial class ReversePath
             return path;
         }
 
-        bool startsWithSeparator = false;
+        bool startsWithSeparator = false, endsWithSeparator;
         byte drivePrefix = 0;
         span = span[WindowsInfo.CalculateLength(prefix)..];
         ReadOnlySpan<char> server = [], volume = [];
@@ -126,38 +130,27 @@ public static partial class ReversePath
                         span = span[(index + 1)..];
                     }
 
+                    Debug.Assert(drivePrefix == 0);
                     drivePrefix = WindowsInfo.CalculateDrivePrefix(ref span, ref hasAltSeparator);
                 }
                 break;
             default:
+                Debug.Assert(drivePrefix == 0);
                 drivePrefix = WindowsInfo.CalculateDrivePrefix(ref span, ref hasAltSeparator);
                 break;
         }
 
-        var firstNotSeparatorIndex = span.IndexOfAnyExcept(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (firstNotSeparatorIndex >= 0)
         {
-            startsWithSeparator |= firstNotSeparatorIndex > 0;
-            span = span[firstNotSeparatorIndex..];
+            var oldLength = span.Length;
+            span = span.TrimStart(@"\/");
+            startsWithSeparator |= span.Length != oldLength;
         }
-        else
         {
-            startsWithSeparator |= !span.IsEmpty;
-            span = [];
+            var oldLength = span.Length;
+            span = span.TrimEnd(@"\/");
+            endsWithSeparator = span.Length != oldLength;
         }
 
-        bool endsWithSeparator;
-        if (span.IsEmpty)
-        {
-            endsWithSeparator = false;
-        }
-        else
-        {
-            var lastNotSeparatorIndex = span.LastIndexOfAnyExcept(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            Debug.Assert(lastNotSeparatorIndex >= 0);
-            endsWithSeparator = lastNotSeparatorIndex + 1 != span.Length;
-            span = span[..(lastNotSeparatorIndex + 1)];
-        }
         var maxSegmentCapacity = ((span.Length + 3) >> 2) << 1;
         var _ = (stackalloc long[maxSegmentCapacity <= 32 ? maxSegmentCapacity : 32]);
         var info = new WindowsInfo(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span)), MemoryMarshal.Cast<long, ValueTuple<int, int>>(_), startsWithSeparator, endsWithSeparator, prefix, drivePrefix, server, volume);
