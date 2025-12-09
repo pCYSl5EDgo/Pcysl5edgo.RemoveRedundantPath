@@ -130,8 +130,12 @@ public static partial class ReversePath
                         span = span[(index + 1)..];
                     }
 
-                    Debug.Assert(drivePrefix == 0);
-                    drivePrefix = WindowsInfo.CalculateDrivePrefix(ref span, ref hasAltSeparator);
+                    if (volume.Length == 2)
+                    {
+                        Debug.Assert(drivePrefix == 0);
+                        drivePrefix = WindowsInfo.CalculateDrivePrefix(ref volume, ref hasAltSeparator);
+                        Debug.Assert(drivePrefix != 0 || volume.IsEmpty);
+                    }
                 }
                 break;
             default:
