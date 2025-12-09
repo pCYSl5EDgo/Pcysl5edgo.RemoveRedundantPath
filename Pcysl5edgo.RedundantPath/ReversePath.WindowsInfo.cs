@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace Pcysl5edgo.RedundantPath;
 
@@ -78,7 +79,19 @@ public static partial class ReversePath
 
         public int Initialize(int textLength, ref bool hasAltSeparator)
         {
-            return InitializeEach(textLength, ref hasAltSeparator);
+            if (!Vector128.IsHardwareAccelerated && !Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated)
+            {
+                return InitializeEach(textLength, ref hasAltSeparator);
+            }
+            else if (textLength <= 32)
+            {
+                return InitializeSimdLTE32(textLength, ref hasAltSeparator);
+            }
+        }
+
+        private int InitializeSimdLTE32(int textLength, ref bool hasAltSeparator)
+        {
+            throw new NotImplementedException();
         }
 
         public int InitializeEach(int textLength, ref bool hasAltSeparator)

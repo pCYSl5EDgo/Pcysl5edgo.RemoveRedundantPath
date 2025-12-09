@@ -20,27 +20,6 @@ public static class BitSpan
         return ((array >>> bitOffset) & 1u) != default;
     }
 
-    public static int TrailingOneCount(ulong array, int bitLength, int bitOffset)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(bitLength);
-        ArgumentOutOfRangeException.ThrowIfNegative(bitOffset);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(bitLength, 64);
-        if (bitOffset < bitLength)
-        {
-            var temp = (~array >>> bitOffset);
-            if (temp != default)
-            {
-                var answer = BitOperations.TrailingZeroCount(temp) + bitOffset;
-                if (answer < bitLength)
-                {
-                    return answer;
-                }
-            }
-        }
-
-        return bitLength;
-    }
-
     public static string ToString(ulong bitArray, int bitLength)
     {
         return string.Create(bitLength, bitArray, static (span, bitArray) =>
