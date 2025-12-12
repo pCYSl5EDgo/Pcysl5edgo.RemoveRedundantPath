@@ -29,15 +29,13 @@ public class RelativePathBenchmarks
     }
 
 
+#if !WINDOWS_NT
     [Benchmark]
     public string ReverseSimd()
     {
-#if WINDOWS_NT
-        return ReversePath.RemoveRedundantSegmentsWindows(Source, false);
-#else
         return ReversePath.RemoveRedundantSegmentsUnix(Source, false);
-#endif
     }
+#endif
 
     [Benchmark(Baseline = true)]
     public string Old()
