@@ -132,7 +132,7 @@ public static partial class ReversePath
                     }
                     else
                     {
-                        segmentCharCount += AddOrUniteSegment(textIndex + 1, mode, textIndex + mode);
+                        segmentCharCount += AddOrUniteSegment(textIndex + 1, mode, textIndex + 1 + mode);
                     }
 
                     mode = 0;
