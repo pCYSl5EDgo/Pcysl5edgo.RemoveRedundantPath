@@ -79,22 +79,7 @@ public static partial class ReversePath
 
         public int Initialize(int textLength, ref bool hasBeenChanged)
         {
-            if (!Vector128.IsHardwareAccelerated && !Vector256.IsHardwareAccelerated && !Vector512.IsHardwareAccelerated)
-            {
-                goto FALLBACK;
-            }
-            else if (textLength <= 32)
-            {
-                goto FALLBACK;
-            }
-
-        FALLBACK:
             return InitializeEach(textLength, ref hasBeenChanged);
-        }
-
-        private int InitializeSimdLTE32(int textLength, ref bool hasBeenChanged)
-        {
-            throw new NotImplementedException();
         }
 
         public int InitializeEach(int textLength, ref bool hasBeenChanged)
