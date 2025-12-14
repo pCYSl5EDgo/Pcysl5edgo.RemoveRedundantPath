@@ -33,10 +33,10 @@ public static partial class ReversePath
 
         var segmentCount = UnixInfo.CalculateMaxSegmentCount(span.Length);
         var _ = (stackalloc ValueTuple<int, int>[segmentCount < 8 ? segmentCount : 8]);
-        var info = new UnixInfo(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span)), _, startsWithSeparator, endsWithSeparator);
+        var info = new UnixInfo(span, _, startsWithSeparator, endsWithSeparator);
         try
         {
-            var answerLength = forceEach ? info.InitializeEach(span.Length) : info.Initialize(span.Length);
+            var answerLength = forceEach ? info.InitializeEach() : info.Initialize();
             if (answerLength >= path.Length)
             {
                 return path;

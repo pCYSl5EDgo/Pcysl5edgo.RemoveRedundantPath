@@ -10,7 +10,7 @@ public static partial class ReversePath
 {
     private ref struct UnixInfo : IDisposable
     {
-        private readonly ref ushort textRef;
+        private readonly ReadOnlySpan<char> textSpan;
         private Span<(int Offset, int Length)> segmentSpan;
         private long[]? rentalArray;
         private int segmentCount;
@@ -21,9 +21,9 @@ public static partial class ReversePath
         private readonly ref (int Offset, int Length) LastSegment => ref segmentSpan[segmentCount - 1];
         public readonly bool IsSlashOnly => startsWithSeparator && segmentCount == 0;
 
-        public UnixInfo(ref ushort textRef, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSepartor)
+        public UnixInfo(ReadOnlySpan<char> textSpan, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSepartor)
         {
-            this.textRef = ref textRef;
+            this.textSpan = textSpan;
             this.segmentSpan = segmentSpan;
             this.startsWithSeparator = startsWithSeparator;
             endsWithSeparator = endsWithSepartor;
@@ -87,37 +87,28 @@ public static partial class ReversePath
         // a/./a
         public static int CalculateMaxSegmentCount(int charCount) => (charCount + 3) >>> 2;
 
-        public int Initialize(int textLength)
+        public int Initialize()
         {
-            Debug.Assert(textLength >= 0);
-            if (textLength < 16)
+            if (textSpan.Length < 16)
             {
-                return InitializeEach(textLength);
+                return InitializeEach();
             }
-            else if (textLength <= 32)
+            else if (textSpan.Length <= 32)
             {
-                return InitializeSimdLTE32(textLength);
-            }
-            else if (nuint.Size == sizeof(uint))
-            {
-                return InitializeSimdGT32(textLength);
-            }
-            else if (textLength <= 64)
-            {
-                return InitializeSimdLTE64(textLength);
+                return InitializeSimdLTE32();
             }
             else
             {
-                return InitializeSimdGT64(textLength);
+                return InitializeSimdGT32();
             }
         }
 
-        public int InitializeEach(int textLength)
+        public int InitializeEach()
         {
             int mode = 0, segmentCharCount = 0;
-            for (int textIndex = textLength - 1; textIndex >= 0; --textIndex)
+            for (int textIndex = textSpan.Length - 1; textIndex >= 0; --textIndex)
             {
-                var c = Unsafe.Add(ref textRef, textIndex);
+                var c = textSpan[textIndex];
                 if (mode > 0)
                 {
                     if (c != '/')
@@ -217,20 +208,22 @@ public static partial class ReversePath
             }
         }
 
-        private int InitializeSimdLTE32(int textLength)
+        private int InitializeSimdLTE32()
         {
-            var sep = BitSpan.Get(ref textRef, out uint dot, textLength);
-            var sepWall = ((sep >>> 1) | BitSpan.CalculateUpperBitWall32(textLength - 1));
-            var current = dot & ((sep << 1) | 1u) & sepWall;
-            var parent = dot & (dot << 1) & ((sep << 2) | 2u) & sepWall;
-            var sepDup = sep & (sepWall | (sep << 1) | 1u);
+            const uint ONE = 1u;
+            var sep = BitSpan.Get(textSpan, out uint dot);
+            BitSpan.CalculateUpperBitWall(textSpan.Length - 1, out uint sepWall);
+            sepWall |= (sep >>> 1);
+            var current = dot & ((sep << 1) | ONE) & sepWall;
+            var parent = dot & (dot << 1) & ((sep << 2) | (ONE << 1)) & sepWall;
+            var sepDup = sep & (sepWall | (sep << 1) | ONE);
             if ((current | parent | sepDup) == 0)
             {
-                return textLength + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
+                return textSpan.Length + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
             }
 
             int segmentCharCount = 0;
-            var textIndex = textLength - 1;
+            var textIndex = textSpan.Length - 1;
             var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, sep, sepDup, current, parent, 0);
             if (continueLength > 0)
             {
@@ -240,91 +233,28 @@ public static partial class ReversePath
             return CalculateLength(segmentCharCount);
         }
 
-        private int InitializeSimdLTE64(int textLength)
-        {
-            const ulong One = 1ul;
-            var sep = BitSpan.Get(ref textRef, out ulong dot, textLength);
-            var sepWall = ((sep >>> 1) | BitSpan.CalculateUpperBitWall64(textLength - 1));
-            var current = dot & ((sep << 1) | One) & sepWall;
-            var parent = dot & (dot << 1) & ((sep << 2) | (One << 1)) & sepWall;
-            var sepDup = sep & (sepWall | (sep << 1) | 1ul);
-            if ((current | parent | sepDup) == 0)
-            {
-                return textLength + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
-            }
-
-            int segmentCharCount = 0;
-            var textIndex = textLength - 1;
-            var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, sep, sepDup, current, parent, 0);
-            if (continueLength > 0)
-            {
-                segmentCharCount = ProcessLastContinuation(segmentCharCount, continueLength);
-            }
-
-            return CalculateLength(segmentCharCount);
-        }
-
-        private int InitializeSimdGT32(int textLength)
+        private int InitializeSimdGT32()
         {
             const int BitShift = 5;
             const int BitCount = 1 << BitShift;
-            Debug.Assert(textLength >= BitCount + 1);
+            Debug.Assert(textSpan.Length >= BitCount + 1);
             const int BitMask = BitCount - 1;
             const uint OneBit = 1u;
-            int segmentCharCount = 0, textIndex = textLength - 1, batchCount = (textLength + BitMask) >>> BitShift, batchIndex = batchCount - 2;
-            var separatorCurrent = BitSpan.Get(ref Unsafe.Add(ref textRef, batchIndex * BitCount + BitCount), out uint dotCurrent, textLength & BitMask);
-            var separatorPrev = BitSpan.Get(ref Unsafe.Add(ref textRef, batchIndex * BitCount), out uint dotPrev);
-            var separatorWall = BitSpan.CalculateUpperBitWall32((textLength - 1) & BitMask) | (separatorCurrent >>> 1);
+            int segmentCharCount = 0, textIndex = textSpan.Length - 1, batchCount = (textSpan.Length + BitMask) >>> BitShift, batchIndex = batchCount - 2;
+            var separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out uint dotCurrent);
+            var separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out uint dotPrev);
+            BitSpan.CalculateUpperBitWall((textSpan.Length - 1) & BitMask, out uint separatorWall);
+            separatorWall |= separatorCurrent >>> 1;
             var current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
             var parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textLength - 1) : default));
+            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textSpan.Length - 1) : default));
             var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             while (--batchIndex >= 0)
             {
                 separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
                 separatorCurrent = separatorPrev;
                 dotCurrent = dotPrev;
-                separatorPrev = BitSpan.Get(ref Unsafe.Add(ref textRef, batchIndex * BitCount), out dotPrev);
-                current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
-                parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-                separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | separatorWall);
-                continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, continueLength, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
-            }
-
-            separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
-            current = dotPrev & ((separatorPrev << 1) | OneBit) & separatorWall;
-            parent = dotPrev & (dotPrev << 1) & ((separatorPrev << 2) | (OneBit << 1)) & separatorWall;
-            separatorDuplicate = separatorPrev & ((separatorPrev << 1) | OneBit | separatorWall);
-            continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, continueLength, separatorPrev, separatorDuplicate, current, parent, 0);
-            if (continueLength > 0)
-            {
-                segmentCharCount = ProcessLastContinuation(segmentCharCount, continueLength);
-            }
-
-            return CalculateLength(segmentCharCount);
-        }
-
-        private int InitializeSimdGT64(int textLength)
-        {
-            const int BitShift = 6;
-            const int BitCount = 1 << BitShift;
-            Debug.Assert(textLength >= BitCount + 1);
-            const int BitMask = BitCount - 1;
-            const ulong OneBit = 1ul;
-            int segmentCharCount = 0, textIndex = textLength - 1, batchCount = (textLength + BitMask) >>> BitShift, batchIndex = batchCount - 2;
-            var separatorCurrent = BitSpan.Get(ref Unsafe.Add(ref textRef, batchIndex * BitCount + BitCount), out ulong dotCurrent, textLength & BitMask);
-            var separatorPrev = BitSpan.Get(ref Unsafe.Add(ref textRef, batchIndex * BitCount), out ulong dotPrev);
-            var separatorWall = BitSpan.CalculateUpperBitWall64((textLength - 1) & BitMask) | (separatorCurrent >>> 1);
-            var current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
-            var parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textLength - 1) : default));
-            var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
-            while (--batchIndex >= 0)
-            {
-                separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
-                separatorCurrent = separatorPrev;
-                dotCurrent = dotPrev;
-                separatorPrev = BitSpan.Get(ref Unsafe.Add(ref textRef, batchIndex * BitCount), out dotPrev);
+                separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out dotPrev);
                 current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
                 parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
                 separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | separatorWall);
@@ -358,126 +288,6 @@ public static partial class ReversePath
         private int ProcessLoop(ref int segmentCharCount, ref int textIndex, int continueLength, uint separator, uint separatorDuplicate, uint current, uint parent, int batchIndex)
         {
             const int BitCount = 32;
-            var loopLowerLimit = batchIndex * BitCount;
-            var textIndexOffset = loopLowerLimit + BitCount;
-            int nextSeparatorIndex, length;
-            if (continueLength > 0)
-            {
-                if (BitSpan.GetBit(separator, textIndex))
-                {
-                    nextSeparatorIndex = textIndex;
-                    length = continueLength;
-                }
-                else
-                {
-                    Debug.Assert(!BitSpan.GetBit(parent, textIndex) && !BitSpan.GetBit(current, textIndex));
-                    var temp = BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex);
-                    nextSeparatorIndex = textIndexOffset - 1 - BitOperations.LeadingZeroCount(temp);
-                    length = textIndex - nextSeparatorIndex + continueLength;
-                }
-
-                if (nextSeparatorIndex < loopLowerLimit)
-                {
-                    textIndex = nextSeparatorIndex;
-                    return length;
-                }
-                else if (parentSegmentCount != 0)
-                {
-                    --parentSegmentCount;
-                }
-                else
-                {
-                    hasLeadingCurrentSegment = false;
-                    if (segmentCount == 0)
-                    {
-                        AddSegment(nextSeparatorIndex + 1, segmentCharCount = length);
-                    }
-                    else
-                    {
-                        ref var oldPair = ref LastSegment;
-                        var diff = oldPair.Offset - textIndex - 1;
-                        switch (diff)
-                        {
-                            case 0:
-                            case 1:
-                                oldPair = new(nextSeparatorIndex + 1, length += diff);
-                                break;
-                            default:
-                                AddSegment(nextSeparatorIndex + 1, length);
-                                break;
-                        }
-
-                        segmentCharCount += length;
-                    }
-                }
-
-                textIndex = nextSeparatorIndex - 1;
-                if (textIndex < loopLowerLimit)
-                {
-                    return 0;
-                }
-            }
-
-            if (parentSegmentCount == 0 && (parent | current | separatorDuplicate) == 0)
-            {
-                continueLength = (textIndex & (BitCount - 1)) + 1;
-                textIndex = loopLowerLimit - 1;
-                return continueLength;
-            }
-
-            var any = separator | parent | current;
-            do
-            {
-                if (BitSpan.GetBit(any, textIndex))
-                {
-                    if (BitSpan.GetBit(separator, textIndex))
-                    {
-                        var temp = BitSpan.ZeroClearUpperBit(~separator, textIndexOffset - textIndex);
-                        textIndex = textIndexOffset - 1 - BitOperations.LeadingZeroCount(temp);
-                    }
-                    else if (BitSpan.GetBit(parent, textIndex))
-                    {
-                        ++parentSegmentCount;
-                        textIndex -= 3;
-                    }
-                    else
-                    {
-                        Debug.Assert(BitSpan.GetBit(current, textIndex));
-                        hasLeadingCurrentSegment = parentSegmentCount == 0;
-                        textIndex -= 2;
-                    }
-
-                    continue;
-                }
-
-                {
-                    var temp = BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex);
-                    nextSeparatorIndex = textIndexOffset - 1 - BitOperations.LeadingZeroCount(temp);
-                    length = textIndex - nextSeparatorIndex;
-                }
-                if (nextSeparatorIndex < loopLowerLimit)
-                {
-                    textIndex = nextSeparatorIndex;
-                    return length;
-                }
-                else if (parentSegmentCount != 0)
-                {
-                    --parentSegmentCount;
-                }
-                else
-                {
-                    segmentCharCount += AddOrUniteSegment(nextSeparatorIndex + 1, length, textIndex + 2);
-                }
-
-                textIndex = nextSeparatorIndex - 1;
-            }
-            while (textIndex >= loopLowerLimit);
-            return 0;
-        }
-
-        private int ProcessLoop(ref int segmentCharCount, ref int textIndex, int continueLength, ulong separator, ulong separatorDuplicate, ulong current, ulong parent, int batchIndex)
-        {
-            const int BitCount = 64;
             var loopLowerLimit = batchIndex * BitCount;
             var textIndexOffset = loopLowerLimit + BitCount;
             int nextSeparatorIndex, length;
@@ -663,8 +473,7 @@ public static partial class ReversePath
             {
                 destination[0] = '/';
                 var (offset, length) = segmentSpan[segmentIndex];
-                var source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
-                source.CopyTo(destination[1..]);
+                textSpan.Slice(offset, length).CopyTo(destination[1..]);
                 destination = destination[(length + 1)..];
             }
 
@@ -675,15 +484,13 @@ public static partial class ReversePath
         {
             int segmentIndex = segmentCount - 1;
             var (offset, length) = segmentSpan[segmentIndex];
-            var source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
-            source.CopyTo(destination);
+            textSpan.Slice(offset, length).CopyTo(destination);
             destination = destination[length..];
             for (segmentIndex = segmentCount - 2; segmentIndex >= 0; --segmentIndex)
             {
                 destination[0] = '/';
                 (offset, length) = segmentSpan[segmentIndex];
-                source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref Unsafe.Add(ref textRef, offset)), length);
-                source.CopyTo(destination[1..]);
+                textSpan.Slice(offset, length).CopyTo(destination[1..]);
                 destination = destination[(length + 1)..];
             }
 
@@ -704,7 +511,7 @@ public static partial class ReversePath
             for (int segmentIndex = segmentCount - 1; ; segmentIndex--)
             {
                 var (offset, length) = segmentSpan[segmentIndex];
-                handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, offset), length)));
+                handler.AppendFormatted(textSpan.Slice(offset, length));
                 if (segmentIndex == 0)
                 {
                     break;
@@ -716,11 +523,6 @@ public static partial class ReversePath
             }
 
             return handler.ToString();
-        }
-
-        public readonly string CalculateOriginalText(int textLength)
-        {
-            return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref textRef), textLength).ToString();
         }
 #endif
         #endregion
