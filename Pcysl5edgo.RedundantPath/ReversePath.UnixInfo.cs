@@ -89,7 +89,11 @@ public static partial class ReversePath
 
         public int Initialize()
         {
-            if (textSpan.Length < 16)
+            if (textSpan.IsEmpty)
+            {
+                return CalculateLength(0);
+            }
+            else if (textSpan.Length < 16)
             {
                 return InitializeEach();
             }
@@ -210,21 +214,32 @@ public static partial class ReversePath
 
         private int InitializeSimdLTE32()
         {
-            const uint ONE = 1u;
-            var sep = BitSpan.Get(textSpan, out uint dot);
-            BitSpan.CalculateUpperBitWall(textSpan.Length - 1, out uint sepWall);
-            sepWall |= (sep >>> 1);
-            var current = dot & ((sep << 1) | ONE) & sepWall;
-            var parent = dot & (dot << 1) & ((sep << 2) | (ONE << 1)) & sepWall;
-            var sepDup = sep & (sepWall | (sep << 1) | ONE);
-            if ((current | parent | sepDup) == 0)
+            const uint OneBit = 1u;
+#pragma warning disable IDE0018
+            uint separator, dot, separatorWall, current, parent, separatorDuplicate;
+#pragma warning restore IDE0018
+            if (textSpan.Length == 32)
+            {
+                separator = BitSpan.Get(textSpan, out dot);
+            }
+            else
+            {
+                separator = BitSpan.Get(textSpan, out dot, textSpan.Length);
+            }
+
+            BitSpan.CalculateUpperBitWall(textSpan.Length - 1, out separatorWall);
+            separatorWall |= (separator >>> 1);
+            current = dot & ((separator << 1) | OneBit) & separatorWall;
+            parent = dot & (dot << 1) & ((separator << 2) | (OneBit << 1)) & separatorWall;
+            separatorDuplicate = separator & (separatorWall | (separator << 1) | OneBit);
+            if ((current | parent | separatorDuplicate) == 0)
             {
                 return textSpan.Length + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
             }
 
             int segmentCharCount = 0;
             var textIndex = textSpan.Length - 1;
-            var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, sep, sepDup, current, parent, 0);
+            var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separator, separatorDuplicate, current, parent, 0);
             if (continueLength > 0)
             {
                 segmentCharCount = ProcessLastContinuation(segmentCharCount, continueLength);
@@ -241,13 +256,24 @@ public static partial class ReversePath
             const int BitMask = BitCount - 1;
             const uint OneBit = 1u;
             int segmentCharCount = 0, textIndex = textSpan.Length - 1, batchCount = (textSpan.Length + BitMask) >>> BitShift, batchIndex = batchCount - 2;
-            var separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out uint dotCurrent);
-            var separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out uint dotPrev);
-            BitSpan.CalculateUpperBitWall((textSpan.Length - 1) & BitMask, out uint separatorWall);
+#pragma warning disable IDE0018
+            uint separatorCurrent, separatorPrev, dotCurrent, dotPrev, separatorWall, current, parent, separatorDuplicate;
+#pragma warning restore IDE0018
+            if ((textSpan.Length & BitMask) == default)
+            {
+                separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out dotCurrent);
+            }
+            else
+            {
+                separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out dotCurrent, textSpan.Length & BitMask);
+            }
+
+            separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out dotPrev);
+            BitSpan.CalculateUpperBitWall((textSpan.Length - 1) & BitMask, out separatorWall);
             separatorWall |= separatorCurrent >>> 1;
-            var current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
-            var parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            var separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textSpan.Length - 1) : default));
+            current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
+            parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
+            separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textSpan.Length - 1) : default));
             var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             while (--batchIndex >= 0)
             {

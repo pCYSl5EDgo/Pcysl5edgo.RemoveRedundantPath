@@ -44,14 +44,15 @@ public static class BitSpan
 
     public static uint Get(ReadOnlySpan<char> source, out uint dot)
     {
-        if (source.Length > 31)
-        {
-            return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot);
-        }
-        else
-        {
-            return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot, source.Length);
-        }
+        Debug.Assert(source.Length >= 32);
+        return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot);
+    }
+
+    public static uint Get(ReadOnlySpan<char> source, out uint dot, int length)
+    {
+        Debug.Assert(source.Length >= length);
+        Debug.Assert(length > 0);
+        return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot, length);
     }
 
     /// <summary>
