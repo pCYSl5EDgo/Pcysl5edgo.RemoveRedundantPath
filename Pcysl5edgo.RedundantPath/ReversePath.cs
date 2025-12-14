@@ -31,8 +31,8 @@ public static partial class ReversePath
             endsWithSeparator = span.Length != oldLength;
         }
 
-        var segmentCount = UnixInfo.CalculateMaxSegmentCount(span.Length);
-        var _ = (stackalloc ValueTuple<int, int>[segmentCount < 8 ? segmentCount : 8]);
+        var segmentCapacity = UnixInfo.CalculateMaxSegmentCount(span.Length);
+        var _ = (stackalloc ValueTuple<int, int>[segmentCapacity < 8 ? segmentCapacity : 8]);
         var info = new UnixInfo(span, _, startsWithSeparator, endsWithSeparator);
         try
         {
