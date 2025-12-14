@@ -168,10 +168,10 @@ public static partial class ReversePath
 
         var maxSegmentCapacity = ((span.Length + 3) >> 2) << 1;
         var _ = (stackalloc long[maxSegmentCapacity <= 32 ? maxSegmentCapacity : 32]);
-        var info = new WindowsInfo(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(span)), MemoryMarshal.Cast<long, ValueTuple<int, int>>(_), startsWithSeparator, endsWithSeparator, prefix, drivePrefix, server, volume);
+        var info = new WindowsInfo(span, MemoryMarshal.Cast<long, ValueTuple<int, int>>(_), startsWithSeparator, endsWithSeparator, prefix, drivePrefix, server, volume);
         try
         {
-            var answerLength = forceEach ? info.InitializeEach(span.Length, ref hasAltSeparator) : info.Initialize(span.Length, ref hasAltSeparator);
+            var answerLength = forceEach ? info.InitializeEach(ref hasAltSeparator) : info.Initialize(ref hasAltSeparator);
             if (!hasAltSeparator && answerLength >= path.Length)
             {
                 return path;

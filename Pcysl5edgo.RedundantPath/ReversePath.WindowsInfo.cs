@@ -10,7 +10,7 @@ public static partial class ReversePath
 {
     private ref struct WindowsInfo : IDisposable
     {
-        private ref ushort textRef;
+        private readonly ReadOnlySpan<char> textSpan;
         private Span<(int Offset, int Length)> segmentSpan;
         private int segmentCount;
         private readonly ref (int Offset, int Length) LastSegment => ref segmentSpan[segmentCount - 1];
@@ -52,9 +52,9 @@ public static partial class ReversePath
         private readonly byte drivePrefix;
         public static bool ShouldPreserveTrailingDots(Prefix prefix) => prefix > Prefix.Unc;
 
-        public WindowsInfo(ref ushort textRef, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSeparator, Prefix prefix, byte drivePrefix, ReadOnlySpan<char> uncServer, ReadOnlySpan<char> uncVolume)
+        public WindowsInfo(ReadOnlySpan<char> textSpan, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSeparator, Prefix prefix, byte drivePrefix, ReadOnlySpan<char> uncServer, ReadOnlySpan<char> uncVolume)
         {
-            this.textRef = ref textRef;
+            this.textSpan = textSpan;
             this.segmentSpan = segmentSpan;
             segmentCount = 0;
             rentalArray = default;
@@ -76,18 +76,18 @@ public static partial class ReversePath
             }
         }
 
-        public int Initialize(int textLength, ref bool hasBeenChanged)
+        public int Initialize(ref bool hasBeenChanged)
         {
-            return InitializeEach(textLength, ref hasBeenChanged);
+            return InitializeEach(ref hasBeenChanged);
         }
 
-        public int InitializeEach(int textLength, ref bool hasBeenChanged)
+        public int InitializeEach(ref bool hasBeenChanged)
         {
             bool isPreviousSeparatorCanonical = false;
             int mode = 0, segmentCharCount = 0;
-            for (int textIndex = textLength - 1; textIndex >= 0; --textIndex)
+            for (int textIndex = textSpan.Length - 1; textIndex >= 0; --textIndex)
             {
-                var c = Unsafe.Add(ref textRef, textIndex);
+                var c = textSpan[textIndex];
                 if (mode > 0)
                 {
                     switch (c)
@@ -535,15 +535,13 @@ public static partial class ReversePath
             if (segmentCount != 0)
             {
                 var (offset, length) = LastSegment;
-                var source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref Unsafe.As<ushort, char>(ref textRef), offset), length);
-                source.CopyTo(span);
+                textSpan.Slice(offset, length).CopyTo(span);
                 span = span[length..];
                 for (int i = segmentCount - 2; i >= 0; --i)
                 {
                     span[0] = '\\';
                     (offset, length) = segmentSpan[i];
-                    source = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref Unsafe.As<ushort, char>(ref textRef), offset), length);
-                    source.CopyTo(span[1..]);
+                    textSpan.Slice(offset, length).CopyTo(span[1..]);
                     span = span[(length + 1)..];
                 }
             }
@@ -628,7 +626,7 @@ public static partial class ReversePath
             for (int segmentIndex = segmentCount - 1; ; segmentIndex--)
             {
                 var (offset, length) = segmentSpan[segmentIndex];
-                handler.AppendFormatted(MemoryMarshal.Cast<ushort, char>(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref textRef, offset), length)));
+                handler.AppendFormatted(textSpan.Slice(offset, length));
                 if (segmentIndex == 0)
                 {
                     break;
@@ -640,11 +638,6 @@ public static partial class ReversePath
             }
 
             return handler.ToString();
-        }
-
-        public readonly string CalculateOriginalText(int textLength)
-        {
-            return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.As<ushort, char>(ref textRef), textLength).ToString();
         }
 #endif
         #endregion
