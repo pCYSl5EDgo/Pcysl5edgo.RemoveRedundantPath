@@ -1,3 +1,4 @@
+using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -129,17 +130,25 @@ public static class BitSpan
     /// <returns>A bitmask with bits set at positions where a '/' character was found in the input sequence.</returns>
     private static uint Get(ref ushort source, out uint dot, int length)
     {
-        Debug.Assert((uint)(length - 1) <= 31u);
+        Debug.Assert((uint)(length - 1) < 31u);
         uint separator = 0, _dot = 0;
         int i = 0;
         if (Vector128.IsHardwareAccelerated && length >= 16)
         {
-            for (; i + Vector128<ushort>.Count <= length; i += Vector128<ushort>.Count)
+            for (; i + Vector128<ushort>.Count < length; i += Vector128<ushort>.Count)
             {
                 var v = Vector128.LoadUnsafe(ref source, (nuint)i);
                 var compound = Vector128.Narrow(Vector128.Equals(v, Vector128.Create((ushort)'/')), Vector128.Equals(v, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
-                separator |= ((uint)(byte)compound) << i;
                 _dot |= (compound >>> 8) << i;
+                separator |= ((uint)(byte)compound) << i;
+            }
+
+            {
+                var offset = length - Vector128<ushort>.Count;
+                var v = Vector128.LoadUnsafe(ref source, (nuint)offset);
+                var compound = Vector128.Narrow(Vector128.Equals(v, Vector128.Create((ushort)'/')), Vector128.Equals(v, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
+                dot = _dot | ((compound >>> 8) << offset);
+                return separator | (((uint)(byte)compound) << offset);
             }
         }
 
