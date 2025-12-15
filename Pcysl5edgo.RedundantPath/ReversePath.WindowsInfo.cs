@@ -78,12 +78,25 @@ public static partial class ReversePath
 
         public int Initialize(ref bool hasBeenChanged)
         {
-            return InitializeEach(ref hasBeenChanged);
+            if (textSpan.IsEmpty)
+            {
+                hasBeenChanged |= CleanUp();
+                return CalculateLength(0);
+            }
+            else if (textSpan.Length <= 32)
+            {
+                //return InitializeEach(ref hasBeenChanged);
+                return InitializeSimdLTE32(ref hasBeenChanged);
+            }
+            else
+            {
+                return InitializeEach(ref hasBeenChanged);
+            }
         }
 
         public int InitializeEach(ref bool hasBeenChanged)
         {
-            bool isPreviousSeparatorCanonical = false;
+            bool isPreviousSeparatorCanonical = false, preserveTrailingDots = ShouldPreserveTrailingDots(prefix);
             int mode = 0, segmentCharCount = 0;
             for (int textIndex = textSpan.Length - 1; textIndex >= 0; --textIndex)
             {
@@ -159,7 +172,7 @@ public static partial class ReversePath
                             --mode;
                             break;
                         default:
-                            mode = 1 - (ShouldPreserveTrailingDots(prefix) ? mode : 0);
+                            mode = 1 - (preserveTrailingDots ? mode : 0);
                             break;
                     }
                 }
@@ -185,7 +198,7 @@ public static partial class ReversePath
                 else
                 {
                     hasLeadingCurrentSegment = false;
-                    if (ShouldPreserveTrailingDots(prefix) || endsWithSeparator || segmentCount != 0)
+                    if (preserveTrailingDots || endsWithSeparator || segmentCount != 0)
                     {
                         segmentCharCount += AddOrUniteSegment(0, -mode, isPreviousSeparatorCanonical ? 1 - mode : -1);
                     }
@@ -205,6 +218,161 @@ public static partial class ReversePath
 
             hasBeenChanged |= CleanUp();
             return CalculateLength(segmentCharCount);
+        }
+
+        private int InitializeSimdLTE32(ref bool hasBeenChanged)
+        {
+            bool isPreviousSeparatorCanonical = false, preserveTrailingDots = ShouldPreserveTrailingDots(prefix);
+            const uint OneBit = 1u;
+            const int BitWidth = 32;
+#pragma warning disable IDE0018
+            uint separator, dot, altSeparator, separatorWall, current, parent;
+#pragma warning restore IDE0018
+            if (textSpan.Length == 32)
+            {
+                separator = BitSpan.Get(textSpan, out dot, out altSeparator);
+            }
+            else
+            {
+                separator = BitSpan.Get(textSpan, out dot, out altSeparator, textSpan.Length);
+            }
+
+            hasBeenChanged |= altSeparator != default;
+            BitSpan.CalculateUpperBitWall(textSpan.Length - 1, out separatorWall);
+            separatorWall |= (separator >>> 1);
+            current = dot & ((separator << 1) | OneBit) & separatorWall;
+            parent = dot & (dot << 1) & ((separator << 2) | (OneBit << 1)) & separatorWall;
+            int segmentCharCount = 0;
+            var textIndex = textSpan.Length - 1;
+            var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, ref isPreviousSeparatorCanonical, 0, separator, altSeparator, dot, current, parent, preserveTrailingDots, 0);
+            if (continueLength != 0)
+            {
+                segmentCharCount = ProcessLastContinueation(segmentCharCount, continueLength, isPreviousSeparatorCanonical);
+            }
+
+            hasBeenChanged |= CleanUp();
+            return CalculateLength(segmentCharCount);
+        }
+
+        private int ProcessLastContinueation(int segmentCharCount, int continueLength, bool isPreviousSeparatorCanonical)
+        {
+            if (parentSegmentCount > 0)
+            {
+                --parentSegmentCount;
+                return segmentCharCount;
+            }
+            else
+            {
+                hasLeadingCurrentSegment = false;
+                if (continueLength < 0)
+                {
+                    if (endsWithSeparator || segmentCount != 0)
+                    {
+                        return segmentCharCount + AddOrUniteSegment(0, -continueLength, isPreviousSeparatorCanonical ? -continueLength + 1 : -1);
+                    }
+                    else
+                    {
+                        return segmentCharCount;
+                    }
+                }
+                else
+                {
+                    Debug.Assert(continueLength > 0);
+                    return segmentCharCount + AddOrUniteSegment(0, continueLength, isPreviousSeparatorCanonical ? continueLength + 1 : -1);
+                }
+            }
+        }
+
+        private int ProcessLoop(ref int segmentCharCount, ref int textIndex, ref bool isPreviousSeparatorCanonical, int continueLength, uint separator, uint altSeparator, uint dot, uint current, uint parent, bool preserveTrailingDots, int batchIndex)
+        {
+            const int BitCount = 32, BitMask = BitCount - 1;
+            var loopLowerLimit = batchIndex * BitCount;
+            var textIndexOffset = loopLowerLimit + BitCount;
+            var any = separator | current | parent;
+            do
+            {
+                if (BitSpan.GetBit(any, textIndex))
+                {
+                    if (BitSpan.GetBit(parent, textIndex))
+                    {
+                        isPreviousSeparatorCanonical = !BitSpan.GetBit(altSeparator, textIndex + 1);
+                        ++parentSegmentCount;
+                        textIndex -= 3;
+                    }
+                    else if (BitSpan.GetBit(separator, textIndex))
+                    {
+                        isPreviousSeparatorCanonical = false;
+                        textIndex = textIndexOffset - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex));
+                        continue;
+                    }
+                    else
+                    {
+                        isPreviousSeparatorCanonical = !BitSpan.GetBit(altSeparator, textIndex + 1);
+                        hasLeadingCurrentSegment = !startsWithSeparator && parentSegmentCount == 0;
+                        textIndex -= 2;
+                    }
+                }
+                else
+                {
+                    var separatorIndex = BitMask - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex));
+                    if (separatorIndex < 0)
+                    {
+                        if (preserveTrailingDots || !BitSpan.GetBit(dot, textIndex))
+                        {
+                            var answer = (textIndex & BitMask) + 1;
+                            textIndex = loopLowerLimit - 1;
+                            return answer;
+                        }
+                        else
+                        {
+                            var preDotIndex = BitMask - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(~dot, textIndexOffset - textIndex));
+                            if (preDotIndex < 0)
+                            {
+                                var answer = -1 - (textIndex & BitMask);
+                                textIndex = loopLowerLimit - 1;
+                                return answer;
+                            }
+
+                            textIndex = loopLowerLimit - 1;
+                            return preDotIndex + 1;
+                        }
+                    }
+
+                    if (parentSegmentCount != 0)
+                    {
+                        --parentSegmentCount;
+                    }
+                    else
+                    {
+                        hasLeadingCurrentSegment = false;
+                        if (preserveTrailingDots || !BitSpan.GetBit(dot, textIndex))
+                        {
+                            segmentCharCount += AddOrUniteSegment(loopLowerLimit + separatorIndex + 1, textIndex - loopLowerLimit - separatorIndex, isPreviousSeparatorCanonical ? textIndex + 2 : -1);
+                        }
+                        else
+                        {
+                            var preDotIndex = BitMask - BitOperations.LeadingZeroCount(BitSpan.ZeroClearUpperBit(~dot, textIndexOffset - textIndex));
+                            if (preDotIndex == separatorIndex)
+                            {
+                                if (endsWithSeparator || segmentCount != 0)
+                                {
+                                    segmentCharCount += AddOrUniteSegment(loopLowerLimit + separatorIndex + 1, textIndex - loopLowerLimit - separatorIndex, isPreviousSeparatorCanonical ? textIndex + 2 : -1);
+                                }
+                            }
+                            else
+                            {
+                                segmentCharCount += AddSegment(loopLowerLimit + separatorIndex + 1, preDotIndex - loopLowerLimit - separatorIndex);
+                            }
+                        }
+                    }
+
+                    isPreviousSeparatorCanonical = !BitSpan.GetBit(altSeparator, separatorIndex);
+                    textIndex = loopLowerLimit + separatorIndex - 1;
+                }
+            }
+            while (textIndex >= loopLowerLimit);
+
+            return 0;
         }
 
         private bool CleanUp()
@@ -393,7 +561,7 @@ public static partial class ReversePath
             }
         }
 
-        private void AddSegment(int offset, int length)
+        private int AddSegment(int offset, int length)
         {
             if (++segmentCount > segmentSpan.Length)
             {
@@ -416,6 +584,7 @@ public static partial class ReversePath
             }
 
             segmentSpan[segmentCount - 1] = new(offset, length);
+            return length;
         }
 
         private int AddOrUniteSegment(int offset, int length, int expectedOffset)
@@ -432,11 +601,10 @@ public static partial class ReversePath
                 }
             }
 
-            AddSegment(offset, length);
-            return length;
+            return AddSegment(offset, length);
         }
 
-        private void Write(Span<char> span)
+        private readonly void Write(Span<char> span)
         {
             switch (prefix)
             {
