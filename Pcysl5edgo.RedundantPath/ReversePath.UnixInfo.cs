@@ -373,6 +373,10 @@ public static partial class ReversePath
                     return 0;
                 }
             }
+            else
+            {
+                Debug.Assert(continueLength == 0);
+            }
 
             if (parentSegmentCount == 0 && (parent | current | separatorDuplicate) == 0)
             {
