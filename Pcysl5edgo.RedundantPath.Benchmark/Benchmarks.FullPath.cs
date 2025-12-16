@@ -6,7 +6,7 @@ using System.Linq;
 namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 // For more information on the VS BenchmarkDotNet Diagnosers see https://learn.microsoft.com/visualstudio/profiling/profiling-with-benchmark-dotnet
-[MediumRunJob]
+[ShortRunJob]
 [BenchmarkCategory("FullPath")]
 public class FullPathBenchmarks
 {
@@ -29,13 +29,15 @@ public class FullPathBenchmarks
 #endif
     }
 
-#if !WINDOWS_NT
     [Benchmark]
     public string ReverseSimd()
     {
+#if WINDOWS_NT
+        return ReversePath.RemoveRedundantSegmentsWindows(Source, false);
+#else
         return ReversePath.RemoveRedundantSegmentsUnix(Source, false);
-    }
 #endif
+    }
 
     [Benchmark(Baseline = true)]
     public string Old()

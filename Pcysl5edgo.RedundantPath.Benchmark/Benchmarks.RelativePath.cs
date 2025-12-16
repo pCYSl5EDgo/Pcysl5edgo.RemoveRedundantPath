@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Pcysl5edgo.RedundantPath.Benchmark;
 
-[MediumRunJob]
+[ShortRunJob]
 [BenchmarkCategory("RelativePath")]
 public class RelativePathBenchmarks
 {
@@ -29,13 +29,15 @@ public class RelativePathBenchmarks
     }
 
 
-#if !WINDOWS_NT
     [Benchmark]
     public string ReverseSimd()
     {
+#if WINDOWS_NT
+        return ReversePath.RemoveRedundantSegmentsWindows(Source, false);
+#else
         return ReversePath.RemoveRedundantSegmentsUnix(Source, false);
-    }
 #endif
+    }
 
     [Benchmark(Baseline = true)]
     public string Old()

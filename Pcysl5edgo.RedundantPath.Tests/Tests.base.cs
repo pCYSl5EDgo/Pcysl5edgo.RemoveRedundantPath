@@ -31,14 +31,27 @@ public class RedundantSegmentsTestsBase
     #region Helpers
     protected void TestWindows(string original, string expected)
     {
-        var actual = ReversePath.RemoveRedundantSegmentsWindows(original);
+        TestWindowsEach(original, expected);
+        var actual = ReversePath.RemoveRedundantSegmentsWindows(original, false);
         if (ReferenceEquals(original, expected))
         {
             Assert.True(ReferenceEquals(original, actual));
         }
 
         Assert.Equal(expected, actual);
-        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsWindows(actual)));
+        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsWindows(actual, false)));
+    }
+
+    protected void TestWindowsEach(string original, string expected)
+    {
+        var actual = ReversePath.RemoveRedundantSegmentsWindows(original, true);
+        if (ReferenceEquals(original, expected))
+        {
+            Assert.True(ReferenceEquals(original, actual));
+        }
+
+        Assert.Equal(expected, actual);
+        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsWindows(actual, true)));
     }
 
     #endregion

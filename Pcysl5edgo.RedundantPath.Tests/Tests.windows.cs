@@ -26,12 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-using Microsoft.VisualStudio.TestPlatform.ObjectModel.Client;
-using Pcysl5edgo.RedundantPath.Tests;
-using System.Collections.Generic;
-using System.Linq;
-using Xunit;
-
 namespace Pcysl5edgo.RedundantPath.Tests;
 
 public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
@@ -42,6 +36,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
     public void DoubleSlash()
     {
         TestWindows("//", @"\\");
+    }
+
+    [Fact]
+    public void BenchmarkTest()
+    {
+        TestWindows(@"//.\D:\abc..\def.../..///....", @"\\.\D:\abc..\....");
     }
 
     #region Qualified NoRedundancy
