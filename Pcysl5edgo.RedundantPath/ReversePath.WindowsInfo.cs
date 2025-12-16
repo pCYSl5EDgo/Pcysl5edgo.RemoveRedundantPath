@@ -224,7 +224,7 @@ public static partial class ReversePath
             bool isPreviousSeparatorCanonical = false, preserveTrailingDots = ShouldPreserveTrailingDots(prefix);
             const uint OneBit = 1u;
 #pragma warning disable IDE0018
-            uint separator, dot, altSeparator, separatorWall, current, parent;
+            uint separator, dot, altSeparator, separatorWall, current, parent, separatorDuplicate;
 #pragma warning restore IDE0018
             if (textSpan.Length == 32)
             {
@@ -240,19 +240,20 @@ public static partial class ReversePath
             separatorWall |= (separator >>> 1);
             current = dot & ((separator << 1) | OneBit) & separatorWall;
             parent = dot & (dot << 1) & ((separator << 2) | (OneBit << 1)) & separatorWall;
+            separatorDuplicate = separator & (separatorWall | (separator << 1) | OneBit);
             int segmentCharCount = 0;
             var textIndex = textSpan.Length - 1;
-            var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, ref isPreviousSeparatorCanonical, 0, separator, altSeparator, dot, current, parent, preserveTrailingDots, 0);
+            var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, ref isPreviousSeparatorCanonical, 0, separator, altSeparator, separatorDuplicate, dot, current, parent, preserveTrailingDots, 0);
             if (continueLength != 0)
             {
-                segmentCharCount = ProcessLastContinueation(segmentCharCount, continueLength, isPreviousSeparatorCanonical);
+                segmentCharCount = ProcessLastContinuation(segmentCharCount, continueLength, isPreviousSeparatorCanonical);
             }
 
             hasBeenChanged |= CleanUp();
             return CalculateLength(segmentCharCount);
         }
 
-        private int ProcessLastContinueation(int segmentCharCount, int continueLength, bool isPreviousSeparatorCanonical)
+        private int ProcessLastContinuation(int segmentCharCount, int continueLength, bool isPreviousSeparatorCanonical)
         {
             if (parentSegmentCount > 0)
             {
@@ -281,7 +282,7 @@ public static partial class ReversePath
             }
         }
 
-        private int ProcessLoop(ref int segmentCharCount, ref int textIndex, ref bool isPreviousSeparatorCanonical, int continueLength, uint separator, uint altSeparator, uint dot, uint current, uint parent, bool preserveTrailingDots, int batchIndex)
+        private int ProcessLoop(ref int segmentCharCount, ref int textIndex, ref bool isPreviousSeparatorCanonical, int continueLength, uint separator, uint altSeparator, uint separatorDuplicate, uint dot, uint current, uint parent, bool preserveTrailingDots, int batchIndex)
         {
             const int BitCount = 32, BitMask = BitCount - 1;
             var loopLowerLimit = batchIndex * BitCount;
