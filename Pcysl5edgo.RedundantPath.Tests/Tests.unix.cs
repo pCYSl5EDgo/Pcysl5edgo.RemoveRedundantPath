@@ -232,6 +232,16 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
             { @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/.", @"/first_segment_length_128_ultimatelylong_very_very_very_first_se/g/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz" },
             { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/..", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg" },
             { @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/ment_length_128_ultimatelylong_very_very_very_scarely_longer_xyz/../", @"/first_segment_length_128_ultimatelylong_very_very_very_first_seg/" },
+
+            // repeat parent simd
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../..", @"/ab0/ab1/ab2/ab3/ab4/ab5" },
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../..", @"/ab0/ab1/ab2/ab3/ab4" },
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../..", @"/ab0/ab1/ab2/ab3" },
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../..", @"/ab0/ab1/ab2" },
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../..", @"/ab0/ab1" },
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../../..", @"/ab0" },
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../../../..", @"/" },
+            { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../../../../..", @"/" },
         };
     #endregion
 }
