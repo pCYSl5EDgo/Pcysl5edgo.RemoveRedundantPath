@@ -121,7 +121,7 @@ public static partial class ReversePath
                         continue;
                     }
 
-                    if (parentSegmentCount != 0)
+                    if (parentSegmentCount > 0)
                     {
                         --parentSegmentCount;
                     }
@@ -302,7 +302,7 @@ public static partial class ReversePath
 
         private int ProcessLastContinuation(int segmentCharCount, int length)
         {
-            if (parentSegmentCount != 0)
+            if (parentSegmentCount > 0)
             {
                 --parentSegmentCount;
                 return segmentCharCount;
@@ -337,7 +337,7 @@ public static partial class ReversePath
                     textIndex = nextSeparatorIndex;
                     return length;
                 }
-                else if (parentSegmentCount != 0)
+                else if (parentSegmentCount > 0)
                 {
                     --parentSegmentCount;
                 }
@@ -416,7 +416,7 @@ public static partial class ReversePath
                     textIndex = nextSeparatorIndex;
                     return length;
                 }
-                else if (parentSegmentCount != 0)
+                else if (parentSegmentCount > 0)
                 {
                     --parentSegmentCount;
                 }
@@ -444,7 +444,7 @@ public static partial class ReversePath
 
                 destination = WriteSegmentsWithStartingSeparator(destination);
             }
-            else if (parentSegmentCount != 0)
+            else if (parentSegmentCount > 0)
             {
                 destination = WriteParentSegments(destination);
                 if (segmentCount != 0)

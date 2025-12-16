@@ -105,7 +105,7 @@ public static partial class ReversePath
                     switch (c)
                     {
                         case '/':
-                            if (parentSegmentCount != 0)
+                            if (parentSegmentCount > 0)
                             {
                                 --parentSegmentCount;
                             }
@@ -119,7 +119,7 @@ public static partial class ReversePath
                             mode = 0;
                             break;
                         case '\\':
-                            if (parentSegmentCount != 0)
+                            if (parentSegmentCount > 0)
                             {
                                 --parentSegmentCount;
                             }
@@ -179,7 +179,7 @@ public static partial class ReversePath
 
             if (mode > 0)
             {
-                if (parentSegmentCount != 0)
+                if (parentSegmentCount > 0)
                 {
                     --parentSegmentCount;
                 }
@@ -190,7 +190,7 @@ public static partial class ReversePath
             }
             else if (mode < -2)
             {
-                if (parentSegmentCount != 0)
+                if (parentSegmentCount > 0)
                 {
                     --parentSegmentCount;
                 }
@@ -300,7 +300,7 @@ public static partial class ReversePath
                     }
 
                     textIndex = loopLowerLimit + separatorIndex - 1;
-                    if (parentSegmentCount != 0)
+                    if (parentSegmentCount > 0)
                     {
                         --parentSegmentCount;
                     }
@@ -389,7 +389,7 @@ public static partial class ReversePath
                         }
                     }
 
-                    if (parentSegmentCount != 0)
+                    if (parentSegmentCount > 0)
                     {
                         --parentSegmentCount;
                     }
@@ -443,7 +443,7 @@ public static partial class ReversePath
                 parentSegmentCount = 0;
                 hasLeadingCurrentSegment = false;
             }
-            else if (parentSegmentCount != 0)
+            else if (parentSegmentCount > 0)
             {
                 hasLeadingCurrentSegment = false;
             }
@@ -599,14 +599,14 @@ public static partial class ReversePath
                     answer += (drivePrefix != 0 ? 2 : 0) + (endsWithSeparator ? 1 : 0);
                     if (segmentCount == 0)
                     {
-                        return answer + (parentSegmentCount != 0
+                        return answer + (parentSegmentCount > 0
                             ? (3 * parentSegmentCount - 1)
                             : (hasLeadingCurrentSegment
                                 ? 1 : (endsWithSeparator ? -1 : 0)));
                     }
                     else
                     {
-                        return answer + segmentCount + segmentCharCount - 1 + (parentSegmentCount != 0
+                        return answer + segmentCount + segmentCharCount - 1 + (parentSegmentCount > 0
                             ? (3 * parentSegmentCount)
                             : (hasLeadingCurrentSegment ? 2 : 0));
                     }
@@ -730,7 +730,7 @@ public static partial class ReversePath
                 span[0] = '\\';
                 span = span[1..];
             }
-            else if (parentSegmentCount != 0)
+            else if (parentSegmentCount > 0)
             {
                 span[0] = '.';
                 span[1] = '.';
@@ -767,7 +767,7 @@ public static partial class ReversePath
             }
 
         END:
-            if (endsWithSeparator && (segmentCount != 0 || parentSegmentCount != 0 || hasLeadingCurrentSegment))
+            if (endsWithSeparator && (segmentCount != 0 || parentSegmentCount > 0 || hasLeadingCurrentSegment))
             {
                 span[0] = '\\';
                 span = span[1..];
