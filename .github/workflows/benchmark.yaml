@@ -4,9 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [ "master" ]
-    paths:
-      - "*.cs"
-      - "*.csproj"
 jobs:
   benchmark:
     runs-on: ${{ matrix.os }}
