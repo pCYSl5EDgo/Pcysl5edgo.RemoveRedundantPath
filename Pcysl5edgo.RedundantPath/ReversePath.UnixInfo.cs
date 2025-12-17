@@ -399,7 +399,7 @@ public static partial class ReversePath
                     else
                     {
                         var tempSeparator = separator;
-                        for (; parentSegmentCount <= 0; ++parentSegmentCount, tempSeparator &= tempSeparator - 1)
+                        for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator &= tempSeparator - 1)
                         {
                         }
 
