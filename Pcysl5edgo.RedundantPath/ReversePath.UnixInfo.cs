@@ -313,9 +313,9 @@ public static partial class ReversePath
 
         private int ProcessLoop(ref int segmentCharCount, ref int textIndex, int continueLength, uint separator, uint separatorDuplicate, uint current, uint parent, int batchIndex)
         {
-            const int BitCount = 32;
+            const int BitCount = 32, BitMask = BitCount - 1;
             var loopLowerLimit = batchIndex * BitCount;
-            var textIndexOffset = loopLowerLimit + BitCount;
+            var loopUpperLimit = loopLowerLimit + BitCount;
             int nextSeparatorIndex, length;
             if (continueLength > 0)
             {
@@ -327,14 +327,15 @@ public static partial class ReversePath
                 else
                 {
                     Debug.Assert(!BitSpan.GetBit(parent, textIndex) && !BitSpan.GetBit(current, textIndex));
-                    var temp = BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex);
-                    nextSeparatorIndex = textIndexOffset - 1 - BitOperations.LeadingZeroCount(temp);
+                    var temp = BitSpan.ZeroClearUpperBit(separator, loopUpperLimit - textIndex);
+                    nextSeparatorIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
                     length = textIndex - nextSeparatorIndex + continueLength;
                 }
 
                 if (nextSeparatorIndex < loopLowerLimit)
                 {
                     textIndex = nextSeparatorIndex;
+                    Debug.Assert(length >= 0);
                     return length;
                 }
                 else if (parentSegmentCount > 0)
@@ -375,14 +376,36 @@ public static partial class ReversePath
             }
             else
             {
-                Debug.Assert(continueLength == 0);
+                Debug.Assert(continueLength == 0, $"{nameof(continueLength)}: {continueLength}");
             }
 
-            if (parentSegmentCount == 0 && (parent | current | separatorDuplicate) == 0)
+            if ((parent | current | separatorDuplicate) == 0)
             {
-                continueLength = (textIndex & (BitCount - 1)) + 1;
-                textIndex = loopLowerLimit - 1;
-                return continueLength;
+                if (parentSegmentCount == 0 || separator == 0)
+                {
+                    continueLength = (textIndex & BitMask) + 1;
+                    textIndex = loopLowerLimit - 1;
+                    Debug.Assert(continueLength >= 0);
+                    return continueLength;
+                }
+                else
+                {
+                    parentSegmentCount -= BitOperations.PopCount(BitSpan.ZeroClearUpperBit(separator, loopUpperLimit - textIndex));
+                    if (parentSegmentCount >= 0)
+                    {
+                        textIndex = loopLowerLimit - 1;
+                        return BitOperations.TrailingZeroCount(separator);
+                    }
+                    else
+                    {
+                        var tempSeparator = separator;
+                        for (; parentSegmentCount <= 0; ++parentSegmentCount, tempSeparator &= tempSeparator - 1)
+                        {
+                        }
+
+                        textIndex = loopLowerLimit + BitOperations.TrailingZeroCount(tempSeparator) - 1;
+                    }
+                }
             }
 
             var any = separator | parent | current;
@@ -392,8 +415,8 @@ public static partial class ReversePath
                 {
                     if (BitSpan.GetBit(separator, textIndex))
                     {
-                        var temp = BitSpan.ZeroClearUpperBit(~separator, textIndexOffset - textIndex);
-                        textIndex = textIndexOffset - 1 - BitOperations.LeadingZeroCount(temp);
+                        var temp = BitSpan.ZeroClearUpperBit(~separator, loopUpperLimit - textIndex);
+                        textIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
                     }
                     else if (BitSpan.GetBit(parent, textIndex))
                     {
@@ -411,13 +434,14 @@ public static partial class ReversePath
                 }
 
                 {
-                    var temp = BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex);
-                    nextSeparatorIndex = textIndexOffset - 1 - BitOperations.LeadingZeroCount(temp);
+                    var temp = BitSpan.ZeroClearUpperBit(separator, loopUpperLimit - textIndex);
+                    nextSeparatorIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
                     length = textIndex - nextSeparatorIndex;
                 }
                 if (nextSeparatorIndex < loopLowerLimit)
                 {
                     textIndex = nextSeparatorIndex;
+                    Debug.Assert(length >= 0, $"{nameof(length)}: {length} {nameof(textIndex)}: {textIndex}");
                     return length;
                 }
                 else if (parentSegmentCount > 0)
@@ -554,6 +578,8 @@ public static partial class ReversePath
 
             return handler.ToString();
         }
+
+        public readonly char this[int index] => this.textSpan[index];
 #endif
         #endregion
     }
