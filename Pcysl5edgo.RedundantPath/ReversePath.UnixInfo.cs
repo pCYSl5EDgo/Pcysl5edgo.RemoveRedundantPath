@@ -403,7 +403,8 @@ public static partial class ReversePath
                         {
                         }
 
-                        textIndex = loopLowerLimit + BitOperations.TrailingZeroCount(tempSeparator) - 1;
+                        textIndex = loopLowerLimit - 1;
+                        return BitOperations.TrailingZeroCount(tempSeparator);
                     }
                 }
             }
