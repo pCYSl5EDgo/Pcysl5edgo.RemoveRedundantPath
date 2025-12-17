@@ -37,20 +37,26 @@ public class RedundantSegmentsTestsBase
         {
             Assert.True(ReferenceEquals(original, actual));
         }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
 
-        Assert.Equal(expected, actual);
         Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsWindows(actual, false)));
     }
 
-    protected void TestWindowsEach(string original, string expected)
+    private static void TestWindowsEach(string original, string expected)
     {
         var actual = ReversePath.RemoveRedundantSegmentsWindows(original, true);
         if (ReferenceEquals(original, expected))
         {
             Assert.True(ReferenceEquals(original, actual));
         }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
 
-        Assert.Equal(expected, actual);
         Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsWindows(actual, true)));
     }
 

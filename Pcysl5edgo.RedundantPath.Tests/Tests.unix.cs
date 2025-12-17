@@ -39,6 +39,10 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
         {
             Assert.True(ReferenceEquals(expected, actual));
         }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
 
         Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnix(actual));
         Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnix(actual)));
@@ -52,6 +56,10 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
         if (ReferenceEquals(original, expected))
         {
             Assert.True(ReferenceEquals(expected, actual));
+        }
+        else
+        {
+            Assert.Equal(expected, actual);
         }
 
         Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, true));
@@ -242,6 +250,8 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
             { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../../..", @"/ab0" },
             { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../../../..", @"/" },
             { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../../../../..", @"/" },
+            { @"../../../../../../../../../../../../../../../../000/001/002/003/004/005/006/007/008/009/00a/00b/00c/00d/00e/00f/010/011/012/../../../../../../../../../../../../../../../../", @"" },
+            { @"../../../../../../../../../../../../../../../../000/001/002/003/004/005/006/007/008/009/00a/00b/00c/00d/00e/00f/010/011/012/013/014/015/016/017/../../../../../../../../../../../../../../../../", @"" },
         };
     #endregion
 }
