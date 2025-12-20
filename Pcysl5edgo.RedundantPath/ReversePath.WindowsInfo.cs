@@ -286,13 +286,13 @@ public static partial class ReversePath
         {
             const int BitCount = 32, BitMask = BitCount - 1;
             var loopLowerLimit = batchIndex * BitCount;
-            var textIndexOffset = loopLowerLimit + BitCount;
+            var loopUpperLimit = loopLowerLimit + BitCount;
             var any = separator | current | parent;
             if (continueLength != 0)
             {
                 if (continueLength > 0)
                 {
-                    var cleared = BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex);
+                    var cleared = BitSpan.ZeroHighBits(separator, textIndex);
                     var separatorIndex = BitMask - BitOperations.LeadingZeroCount(cleared);
                     continueLength += (textIndex & BitMask) - separatorIndex;
                     if (separatorIndex < 0)
@@ -351,8 +351,8 @@ public static partial class ReversePath
                     else if (BitSpan.GetBit(separator, textIndex))
                     {
                         isPreviousSeparatorCanonical = false;
-                        var cleared = BitSpan.ZeroClearUpperBit(~separator, textIndexOffset - textIndex);
-                        textIndex = textIndexOffset - BitOperations.LeadingZeroCount(cleared) - 1;
+                        var cleared = BitSpan.ZeroHighBits(~separator, textIndex);
+                        textIndex = loopUpperLimit - BitOperations.LeadingZeroCount(cleared) - 1;
                         continue;
                     }
                     else
@@ -364,7 +364,7 @@ public static partial class ReversePath
                 }
                 else
                 {
-                    var separatorCleared = BitSpan.ZeroClearUpperBit(separator, textIndexOffset - textIndex);
+                    var separatorCleared = BitSpan.ZeroHighBits(separator, textIndex);
                     var separatorIndex = BitMask - BitOperations.LeadingZeroCount(separatorCleared);
                     if (separatorIndex < 0)
                     {
@@ -376,7 +376,7 @@ public static partial class ReversePath
                         }
                         else
                         {
-                            var dotCleared = BitSpan.ZeroClearUpperBit(~dot, textIndexOffset - textIndex);
+                            var dotCleared = BitSpan.ZeroHighBits(~dot, textIndex);
                             var preDotIndex = BitMask - BitOperations.LeadingZeroCount(dotCleared);
                             if (preDotIndex < 0)
                             {
@@ -403,7 +403,7 @@ public static partial class ReversePath
                         }
                         else
                         {
-                            var dotCleared = BitSpan.ZeroClearUpperBit(~dot, textIndexOffset - textIndex);
+                            var dotCleared = BitSpan.ZeroHighBits(~dot, textIndex);
                             var preDotIndex = BitMask - BitOperations.LeadingZeroCount(dotCleared);
                             if (preDotIndex == separatorIndex)
                             {

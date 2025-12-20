@@ -321,8 +321,14 @@ public static class BitSpan
         wall = (uint.MaxValue >>> length) << length;
     }
 
-    public static uint ZeroClearUpperBit(uint value, int clearLength)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static uint ZeroHighBits(uint value, int index)
     {
-        return (uint)clearLength < 32u ? ((value << clearLength) >>> clearLength) : 0;
+        if (Bmi2.IsSupported)
+        {
+            return Bmi2.ZeroHighBits(value, (uint)(index & 31));
+        }
+
+        return value & (~(uint.MaxValue << index));
     }
 }

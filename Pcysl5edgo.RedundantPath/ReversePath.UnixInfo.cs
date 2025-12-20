@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 
 namespace Pcysl5edgo.RedundantPath;
 
@@ -327,7 +328,7 @@ public static partial class ReversePath
                 else
                 {
                     Debug.Assert(!BitSpan.GetBit(parent, textIndex) && !BitSpan.GetBit(current, textIndex));
-                    var temp = BitSpan.ZeroClearUpperBit(separator, loopUpperLimit - textIndex);
+                    var temp = BitSpan.ZeroHighBits(separator, textIndex);
                     nextSeparatorIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
                     length = textIndex - nextSeparatorIndex + continueLength;
                 }
@@ -390,7 +391,7 @@ public static partial class ReversePath
                 }
                 else
                 {
-                    parentSegmentCount -= BitOperations.PopCount(BitSpan.ZeroClearUpperBit(separator, loopUpperLimit - textIndex));
+                    parentSegmentCount -= BitOperations.PopCount(BitSpan.ZeroHighBits(separator, textIndex));
                     if (parentSegmentCount >= 0)
                     {
                         textIndex = loopLowerLimit - 1;
@@ -399,8 +400,17 @@ public static partial class ReversePath
                     else
                     {
                         var tempSeparator = separator;
-                        for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator &= tempSeparator - 1)
+                        if (Bmi1.IsSupported)
                         {
+                            for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator = Bmi1.ResetLowestSetBit(tempSeparator))
+                            {
+                            }
+                        }
+                        else
+                        {
+                            for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator &= tempSeparator - 1)
+                            {
+                            }
                         }
 
                         textIndex = loopLowerLimit - 1;
@@ -416,7 +426,7 @@ public static partial class ReversePath
                 {
                     if (BitSpan.GetBit(separator, textIndex))
                     {
-                        var temp = BitSpan.ZeroClearUpperBit(~separator, loopUpperLimit - textIndex);
+                        var temp = BitSpan.ZeroHighBits(~separator, textIndex);
                         textIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
                     }
                     else if (BitSpan.GetBit(parent, textIndex))
@@ -435,7 +445,7 @@ public static partial class ReversePath
                 }
 
                 {
-                    var temp = BitSpan.ZeroClearUpperBit(separator, loopUpperLimit - textIndex);
+                    var temp = BitSpan.ZeroHighBits(separator, textIndex);
                     nextSeparatorIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
                     length = textIndex - nextSeparatorIndex;
                 }
