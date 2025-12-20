@@ -44,6 +44,9 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         TestWindows(@"//.\D:\abc..\def.../..///....", @"\\.\D:\abc..\....");
     }
 
+    private const string LongFolderName = "どうしようもなく異常に長いパスの文字列をこれからつらつら書いてみんとてこのような無様の謗りを免れないフォルダ名を日本語にて記述せざるをえぬのじゃー世知辛いのじゃー本当は、本当は、日本語ではなく🤣などのような絵文字を使うべきなのでしょう。まあこのような長パスだけで全てを網羅することはできませぬが";
+    private const string LongSubfolderName = "フォルダーとフォルダ、この2単語の語感の微妙な差異に籠められた情感を読者諸氏は感じ取ることができるだろうか。日本の昭和時代に翻訳された技術文書では単語の末にある伸ばし棒が省略される慣習が存在した。故に令和のこの時代に生きる我々はフォルダという言葉に昭和のかほりを嗅ぎ取ることとなるのである。昭和……";
+
     #region Qualified NoRedundancy
 
     [Theory]
@@ -259,10 +262,14 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         @"C:/",
         @"C:\folder",
         @"C:/folder",
+        $@"C:\{LongFolderName}",
+        $@"C:/{LongFolderName}",
         @"C:A",
         @"C:A",
         @"C:A\folder",
         @"C:A/folder",
+        $@"C:A\{LongFolderName}",
+        $@"C:A/{LongFolderName}",
     ];
     public static IEnumerable<object[]> MemberData_DevicePrefix =>
         from prefix in ExtendedPrefixes
@@ -279,6 +286,8 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         @"UNC/Server/Share",
         @"UNC\Server\Share\folder",
         @"UNC/Server/Share/folder",
+        $@"UNC\Server\Share\{LongFolderName}",
+        $@"UNC/Server/Share/{LongFolderName}",
     ];
     public static IEnumerable<object[]> MemberData_DevicePrefix_UNC =>
         from prefix in ExtendedPrefixes
@@ -297,7 +306,13 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         @"folder\file.txt",
         @"folder\subfolder",
         @"folder\subfolder\",
-        @"folder\subfolder\file.txt"
+        @"folder\subfolder\file.txt",
+        $@"{LongFolderName}",
+        $@"{LongFolderName}\",
+        $@"{LongFolderName}\file.txt",
+        $@"{LongFolderName}\{LongSubfolderName}",
+        $@"{LongFolderName}\{LongSubfolderName}\",
+        $@"{LongFolderName}\{LongSubfolderName}\file.txt"
     ];
     public static IEnumerable<object[]> MemberData_Qualified_NoRedundancy_DriveAndRoot =>
         from s in TestPaths_NoRedundancy
@@ -346,6 +361,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @".\folder\.\",    @"folder\",     @".\folder\",  @".\folder\" },
         { @".\folder\.\.",   @"folder",      @".\folder",   @".\folder" },
         { @".\folder\.\.\",  @"folder\",     @".\folder\",  @".\folder\" },
+        { $@".\{LongFolderName}",       $@"{LongFolderName}",      $@".\{LongFolderName}",   $@".\{LongFolderName}" },
+        { $@".\{LongFolderName}\",      $@"{LongFolderName}\",     $@".\{LongFolderName}\",  $@".\{LongFolderName}\" },
+        { $@".\{LongFolderName}\.",     $@"{LongFolderName}",      $@".\{LongFolderName}",   $@".\{LongFolderName}" },
+        { $@".\{LongFolderName}\.\",    $@"{LongFolderName}\",     $@".\{LongFolderName}\",  $@".\{LongFolderName}\" },
+        { $@".\{LongFolderName}\.\.",   $@"{LongFolderName}",      $@".\{LongFolderName}",   $@".\{LongFolderName}" },
+        { $@".\{LongFolderName}\.\.\",  $@"{LongFolderName}\",     $@".\{LongFolderName}\",  $@".\{LongFolderName}\" },
 
         { @".\.\folder",         @"folder",      @".\folder",   @".\folder" },
         { @".\.\folder\",        @"folder\",     @".\folder\",  @".\folder\" },
@@ -353,36 +374,66 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @".\.\folder\.\",      @"folder\",     @".\folder\",  @".\folder\" },
         { @".\.\folder\.\.",     @"folder",      @".\folder",   @".\folder" },
         { @".\.\folder\.\.\",    @"folder\",     @".\folder\",  @".\folder\" },
+        { $@".\.\{LongFolderName}",         $@"{LongFolderName}",      $@".\{LongFolderName}",   $@".\{LongFolderName}" },
+        { $@".\.\{LongFolderName}\",        $@"{LongFolderName}\",     $@".\{LongFolderName}\",  $@".\{LongFolderName}\" },
+        { $@".\.\{LongFolderName}\.",       $@"{LongFolderName}",      $@".\{LongFolderName}",   $@".\{LongFolderName}" },
+        { $@".\.\{LongFolderName}\.\",      $@"{LongFolderName}\",     $@".\{LongFolderName}\",  $@".\{LongFolderName}\" },
+        { $@".\.\{LongFolderName}\.\.",     $@"{LongFolderName}",      $@".\{LongFolderName}",   $@".\{LongFolderName}" },
+        { $@".\.\{LongFolderName}\.\.\",    $@"{LongFolderName}\",     $@".\{LongFolderName}\",  $@".\{LongFolderName}\" },
 
         { @"folder\.",       @"folder",      @"folder",     @"folder\" },
         { @"folder\.\",      @"folder\",     @"folder\",    @"folder\" },
         { @"folder\.\.",     @"folder",      @"folder",     @"folder\" },
         { @"folder\.\.\",    @"folder\",     @"folder\",    @"folder\" },
+        { $@"{LongFolderName}\.",       $@"{LongFolderName}",      $@"{LongFolderName}",     $@"{LongFolderName}\" },
+        { $@"{LongFolderName}\.\",      $@"{LongFolderName}\",     $@"{LongFolderName}\",    $@"{LongFolderName}\" },
+        { $@"{LongFolderName}\.\.",     $@"{LongFolderName}",      $@"{LongFolderName}",     $@"{LongFolderName}\" },
+        { $@"{LongFolderName}\.\.\",    $@"{LongFolderName}\",     $@"{LongFolderName}\",    $@"{LongFolderName}\" },
 
         { @"folder\subfolder\.",     @"folder\subfolder",  @"folder\subfolder",     @"folder\subfolder" },
         { @"folder\subfolder\.\",    @"folder\subfolder\", @"folder\subfolder\",    @"folder\subfolder\" },
         { @"folder\subfolder\.\.",   @"folder\subfolder",  @"folder\subfolder",     @"folder\subfolder" },
         { @"folder\subfolder\.\.\",  @"folder\subfolder\", @"folder\subfolder\",    @"folder\subfolder\" },
+        { $@"{LongFolderName}\{LongSubfolderName}\.",     $@"{LongFolderName}\{LongSubfolderName}",  $@"{LongFolderName}\{LongSubfolderName}",     $@"{LongFolderName}\{LongSubfolderName}" },
+        { $@"{LongFolderName}\{LongSubfolderName}\.\",    $@"{LongFolderName}\{LongSubfolderName}\", $@"{LongFolderName}\{LongSubfolderName}\",    $@"{LongFolderName}\{LongSubfolderName}\" },
+        { $@"{LongFolderName}\{LongSubfolderName}\.\.",   $@"{LongFolderName}\{LongSubfolderName}",  $@"{LongFolderName}\{LongSubfolderName}",     $@"{LongFolderName}\{LongSubfolderName}" },
+        { $@"{LongFolderName}\{LongSubfolderName}\.\.\",  $@"{LongFolderName}\{LongSubfolderName}\", $@"{LongFolderName}\{LongSubfolderName}\",    $@"{LongFolderName}\{LongSubfolderName}\" },
 
         { @".\folder\subfolder\.",       @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\folder\subfolder\.\",      @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
         { @".\folder\subfolder\.\.",     @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\folder\subfolder\.\.\",    @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
+        { $@".\{LongFolderName}\{LongSubfolderName}\.",       $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\{LongFolderName}\{LongSubfolderName}\.\",      $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
+        { $@".\{LongFolderName}\{LongSubfolderName}\.\.",     $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\{LongFolderName}\{LongSubfolderName}\.\.\",    $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
 
         { @".\.\folder\subfolder\.",     @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\.\folder\subfolder\.\",    @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
         { @".\.\folder\subfolder\.\.",   @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\.\folder\subfolder\.\.\",  @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
+        { $@".\.\{LongFolderName}\{LongSubfolderName}\.",     $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\.\{LongFolderName}\{LongSubfolderName}\.\",    $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
+        { $@".\.\{LongFolderName}\{LongSubfolderName}\.\.",   $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\.\{LongFolderName}\{LongSubfolderName}\.\.\",  $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
 
         { @".\folder\.\subfolder\.",     @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\folder\.\subfolder\.\",    @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
         { @".\folder\.\subfolder\.\.",   @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\folder\.\subfolder\.\.\",  @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\.",     $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\.\",    $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\.\.",   $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\.\.\",  $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
 
         { @".\folder\.\.\subfolder\.",       @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\folder\.\.\subfolder\.\",      @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
         { @".\folder\.\.\subfolder\.\.",     @"folder\subfolder",    @".\folder\subfolder",     @".\folder\subfolder" },
         { @".\folder\.\.\subfolder\.\.\",    @"folder\subfolder\",   @".\folder\subfolder\",    @".\folder\subfolder\" },
+        { $@".\{LongFolderName}\.\.\{LongSubfolderName}\.",       $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\{LongFolderName}\.\.\{LongSubfolderName}\.\",      $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
+        { $@".\{LongFolderName}\.\.\{LongSubfolderName}\.\.",     $@"{LongFolderName}\{LongSubfolderName}",    $@".\{LongFolderName}\{LongSubfolderName}",     $@".\{LongFolderName}\{LongSubfolderName}" },
+        { $@".\{LongFolderName}\.\.\{LongSubfolderName}\.\.\",    $@"{LongFolderName}\{LongSubfolderName}\",   $@".\{LongFolderName}\{LongSubfolderName}\",    $@".\{LongFolderName}\{LongSubfolderName}\" },
 
         { @".\file.txt",     @"file.txt",    @".\file.txt",  @".\file.txt" },
         { @".\.\file.txt",   @"file.txt",    @".\file.txt",  @".\file.txt" },
@@ -390,28 +441,46 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @".\folder\file.txt",      @"folder\file.txt",     @".\folder\file.txt",  @".\folder\file.txt" },
         { @".\folder\.\file.txt",    @"folder\file.txt",     @".\folder\file.txt",  @".\folder\file.txt" },
         { @".\folder\.\.\file.txt",  @"folder\file.txt",     @".\folder\file.txt",  @".\folder\file.txt" },
+        { $@".\{LongFolderName}\file.txt",      $@"{LongFolderName}\file.txt",     $@".\{LongFolderName}\file.txt",  $@".\{LongFolderName}\file.txt" },
+        { $@".\{LongFolderName}\.\file.txt",    $@"{LongFolderName}\file.txt",     $@".\{LongFolderName}\file.txt",  $@".\{LongFolderName}\file.txt" },
+        { $@".\{LongFolderName}\.\.\file.txt",  $@"{LongFolderName}\file.txt",     $@".\{LongFolderName}\file.txt",  $@".\{LongFolderName}\file.txt" },
 
         { @".\.\folder\file.txt",        @"folder\file.txt",     @".\folder\file.txt",  @".\folder\file.txt" },
         { @".\.\folder\.\file.txt",      @"folder\file.txt",     @".\folder\file.txt",  @".\folder\file.txt" },
         { @".\.\folder\.\.\file.txt",    @"folder\file.txt",     @".\folder\file.txt",  @".\folder\file.txt" },
+        { $@".\.\{LongFolderName}\file.txt",        $@"{LongFolderName}\file.txt",     $@".\{LongFolderName}\file.txt",  $@".\{LongFolderName}\file.txt" },
+        { $@".\.\{LongFolderName}\.\file.txt",      $@"{LongFolderName}\file.txt",     $@".\{LongFolderName}\file.txt",  $@".\{LongFolderName}\file.txt" },
+        { $@".\.\{LongFolderName}\.\.\file.txt",    $@"{LongFolderName}\file.txt",     $@".\{LongFolderName}\file.txt",  $@".\{LongFolderName}\file.txt" },
 
         { @"folder\.\file.txt",      @"folder\file.txt",     @"folder\file.txt",  @"folder\file.txt" },
         { @"folder\.\.\file.txt",    @"folder\file.txt",     @"folder\file.txt",  @"folder\file.txt" },
+        { $@"{LongFolderName}\.\file.txt",      $@"{LongFolderName}\file.txt",     $@"{LongFolderName}\file.txt",  $@"{LongFolderName}\file.txt" },
+        { $@"{LongFolderName}\.\.\file.txt",    $@"{LongFolderName}\file.txt",     $@"{LongFolderName}\file.txt",  $@"{LongFolderName}\file.txt" },
 
         { @"folder\subfolder\.\file.txt",    @"folder\subfolder\file.txt",   @"folder\subfolder\file.txt",  @"folder\subfolder\file.txt" },
         { @"folder\subfolder\.\.\file.txt",  @"folder\subfolder\file.txt",   @"folder\subfolder\file.txt",  @"folder\subfolder\file.txt" },
+        { $@"{LongFolderName}\{LongSubfolderName}\.\file.txt",    $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@"{LongFolderName}\{LongSubfolderName}\file.txt",  $@"{LongFolderName}\{LongSubfolderName}\file.txt" },
+        { $@"{LongFolderName}\{LongSubfolderName}\.\.\file.txt",  $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@"{LongFolderName}\{LongSubfolderName}\file.txt",  $@"{LongFolderName}\{LongSubfolderName}\file.txt" },
 
         { @".\folder\subfolder\.\file.txt",  @"folder\subfolder\file.txt",   @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
         { @".\folder\subfolder\.\.\file.txt", @"folder\subfolder\file.txt",  @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
+        { $@".\{LongFolderName}\{LongSubfolderName}\.\file.txt",   $@"{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
+        { $@".\{LongFolderName}\{LongSubfolderName}\.\.\file.txt", $@"{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
 
         { @".\.\folder\subfolder\.\file.txt",    @"folder\subfolder\file.txt",   @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
         { @".\.\folder\subfolder\.\.\file.txt",  @"folder\subfolder\file.txt",   @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
+        { $@".\.\{LongFolderName}\{LongSubfolderName}\.\file.txt",    $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
+        { $@".\.\{LongFolderName}\{LongSubfolderName}\.\.\file.txt",  $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
 
         { @".\folder\.\subfolder\.\file.txt",    @"folder\subfolder\file.txt",   @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
         { @".\folder\.\subfolder\.\.\file.txt",  @"folder\subfolder\file.txt",   @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\.\file.txt",    $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\.\.\file.txt",  $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
 
         { @".\.\folder\.\.\subfolder\.\file.txt",      @"folder\subfolder\file.txt",   @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
         { @".\.\folder\.\.\subfolder\.\.\file.txt",    @"folder\subfolder\file.txt",   @".\folder\subfolder\file.txt",  @".\folder\subfolder\file.txt" },
+        { $@".\.\{LongFolderName}\.\.\{LongSubfolderName}\.\file.txt",      $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
+        { $@".\.\{LongFolderName}\.\.\{LongSubfolderName}\.\.\file.txt",    $@"{LongFolderName}\{LongSubfolderName}\file.txt",   $@".\{LongFolderName}\{LongSubfolderName}\file.txt",  $@".\{LongFolderName}\{LongSubfolderName}\file.txt" },
     };
     public static IEnumerable<object[]> MemberData_Qualified_Redundant_DriveAndRoot_SingleDot =>
         from t in TestPaths_Redundant_SingleDot
@@ -457,6 +526,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\folder\..\",      @"",            @"..\",        @"..\" },
         { @"..\folder\..\..",    @"",            @"..\..",      @"..\.." },
         { @"..\folder\..\..\",   @"",            @"..\..\",     @"..\..\" },
+        { $@"..\{LongFolderName}",          $@"{LongFolderName}",      $@"..\{LongFolderName}",  $@"..\{LongFolderName}" },
+        { $@"..\{LongFolderName}\",         $@"{LongFolderName}\",     $@"..\{LongFolderName}\", $@"..\{LongFolderName}\" },
+        { $@"..\{LongFolderName}\..",       @"",            @"..",         @"..\" },
+        { $@"..\{LongFolderName}\..\",      @"",            @"..\",        @"..\" },
+        { $@"..\{LongFolderName}\..\..",    @"",            @"..\..",      @"..\.." },
+        { $@"..\{LongFolderName}\..\..\",   @"",            @"..\..\",     @"..\..\" },
 
         { @"..\..\folder",           @"folder",      @"..\..\folder",   @"..\..\folder" },
         { @"..\..\folder\",          @"folder\",     @"..\..\folder\",  @"..\..\folder\" },
@@ -464,6 +539,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\..\folder\..\",       @"",            @"..\..\",         @"..\..\" },
         { @"..\..\folder\..\..",     @"",            @"..\..\..",       @"..\..\.." },
         { @"..\..\folder\..\..\",    @"",            @"..\..\..\",      @"..\..\..\" },
+        { $@"..\..\{LongFolderName}",           $@"{LongFolderName}",      $@"..\..\{LongFolderName}",   $@"..\..\{LongFolderName}" },
+        { $@"..\..\{LongFolderName}\",          $@"{LongFolderName}\",     $@"..\..\{LongFolderName}\",  $@"..\..\{LongFolderName}\" },
+        { $@"..\..\{LongFolderName}\..",        @"",            @"..\..",          @"..\.." },
+        { $@"..\..\{LongFolderName}\..\",       @"",            @"..\..\",         @"..\..\" },
+        { $@"..\..\{LongFolderName}\..\..",     @"",            @"..\..\..",       @"..\..\.." },
+        { $@"..\..\{LongFolderName}\..\..\",    @"",            @"..\..\..\",      @"..\..\..\" },
 
         { @"folder\..",          @"",    @"",       @"folder\.." },
         { @"folder\..\",         @"",    @"",       @"folder\..\" },
@@ -471,6 +552,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"folder\..\..\",      @"",    @"..\",    @"folder\..\..\" },
         { @"folder\..\..\..",    @"",    @"..\..",  @"folder\..\..\.." },
         { @"folder\..\..\..\",   @"",    @"..\..\", @"folder\..\..\..\" },
+        { $@"{LongFolderName}\..",          @"",    @"",       $@"{LongFolderName}\.." },
+        { $@"{LongFolderName}\..\",         @"",    @"",       $@"{LongFolderName}\..\" },
+        { $@"{LongFolderName}\..\..",       @"",    @"..",     $@"{LongFolderName}\..\.." },
+        { $@"{LongFolderName}\..\..\",      @"",    @"..\",    $@"{LongFolderName}\..\..\" },
+        { $@"{LongFolderName}\..\..\..",    @"",    @"..\..",  $@"{LongFolderName}\..\..\.." },
+        { $@"{LongFolderName}\..\..\..\",   @"",    @"..\..\", $@"{LongFolderName}\..\..\..\" },
 
         { @"folder\subfolder\..",        @"folder",      @"folder",     @"folder\" },
         { @"folder\subfolder\..\",       @"folder\",     @"folder\",    @"folder\" },
@@ -478,6 +565,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"folder\subfolder\..\..\",    @"",            @"",           @"folder\..\" },
         { @"folder\subfolder\..\..\..",  @"",            @"..",         @"folder\..\.." },
         { @"folder\subfolder\..\..\..\", @"",            @"..\",        @"folder\..\..\" },
+        { $@"{LongFolderName}\{LongSubfolderName}\..",        $@"{LongFolderName}",      $@"{LongFolderName}",     $@"{LongFolderName}\" },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\",       $@"{LongFolderName}\",     $@"{LongFolderName}\",    $@"{LongFolderName}\" },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\..",     @"",            @"",           $@"{LongFolderName}\.." },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\..\",    @"",            @"",           $@"{LongFolderName}\..\" },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\..\..",  @"",            @"..",         $@"{LongFolderName}\..\.." },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\..\..\", @"",            @"..\",        $@"{LongFolderName}\..\..\" },
 
         { @"..\folder\subfolder\..",         @"folder",      @"..\folder",  @"..\folder" },
         { @"..\folder\subfolder\..\",        @"folder\",     @"..\folder\", @"..\folder\" },
@@ -485,6 +578,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\folder\subfolder\..\..\",     @"",            @"..\",        @"..\" },
         { @"..\folder\subfolder\..\..\..",   @"",            @"..\..",      @"..\.." },
         { @"..\folder\subfolder\..\..\..\",  @"",            @"..\..\",     @"..\..\" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..",         $@"{LongFolderName}",      $@"..\{LongFolderName}",  $@"..\{LongFolderName}" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\",        $@"{LongFolderName}\",     $@"..\{LongFolderName}\", $@"..\{LongFolderName}\" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\..",      @"",            @"..",         @"..\" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\..\",     @"",            @"..\",        @"..\" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\..\..",   @"",            @"..\..",      @"..\.." },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\..\..\",  @"",            @"..\..\",     @"..\..\" },
 
         { @"..\folder\..\subfolder\..",          @"",    @"..",         @"..\" },
         { @"..\folder\..\subfolder\..\",         @"",    @"..\",        @"..\" },
@@ -492,6 +591,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\folder\..\subfolder\..\..\",      @"",    @"..\..\",     @"..\..\" },
         { @"..\folder\..\subfolder\..\..\..",    @"",    @"..\..\..",   @"..\..\.." },
         { @"..\folder\..\subfolder\..\..\..\",   @"",    @"..\..\..\",  @"..\..\..\" },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..",          @"",    @"..",         @"..\" },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\",         @"",    @"..\",        @"..\" },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\..",       @"",    @"..\..",      @"..\.." },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\..\",      @"",    @"..\..\",     @"..\..\" },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\..\..",    @"",    @"..\..\..",   @"..\..\.." },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\..\..\",   @"",    @"..\..\..\",  @"..\..\..\" },
 
         { @"..\folder\..\..\subfolder\..",           @"",    @"..\..",          @"..\.." },
         { @"..\folder\..\..\subfolder\..\",          @"",    @"..\..\",         @"..\..\" },
@@ -499,6 +604,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\folder\..\..\subfolder\..\..\",       @"",    @"..\..\..\",      @"..\..\..\" },
         { @"..\folder\..\..\subfolder\..\..\..",     @"",    @"..\..\..\..",    @"..\..\..\.." },
         { @"..\folder\..\..\subfolder\..\..\..\",    @"",    @"..\..\..\..\",   @"..\..\..\..\" },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..",           @"",    @"..\..",          @"..\.." },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\",          @"",    @"..\..\",         @"..\..\" },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\..",        @"",    @"..\..\..",       @"..\..\.." },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\..\",       @"",    @"..\..\..\",      @"..\..\..\" },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\..\..",     @"",    @"..\..\..\..",    @"..\..\..\.." },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\..\..\",    @"",    @"..\..\..\..\",   @"..\..\..\..\" },
 
         { @"..\file.txt",    @"file.txt",    @"..\file.txt",    @"..\file.txt" },
         { @"..\..\file.txt", @"file.txt",    @"..\..\file.txt", @"..\..\file.txt" },
@@ -506,30 +617,51 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\folder\file.txt",         @"folder\file.txt",     @"..\folder\file.txt", @"..\folder\file.txt" },
         { @"..\folder\..\file.txt",      @"file.txt",            @"..\file.txt",        @"..\file.txt" },
         { @"..\folder\..\..\file.txt",   @"file.txt",            @"..\..\file.txt",     @"..\..\file.txt" },
+        { $@"..\{LongFolderName}\file.txt",         $@"{LongFolderName}\file.txt",     $@"..\{LongFolderName}\file.txt", $@"..\{LongFolderName}\file.txt" },
+        { $@"..\{LongFolderName}\..\file.txt",      @"file.txt",            @"..\file.txt",        @"..\file.txt" },
+        { $@"..\{LongFolderName}\..\..\file.txt",   @"file.txt",            @"..\..\file.txt",     @"..\..\file.txt" },
 
         { @"..\..\folder\file.txt",          @"folder\file.txt",     @"..\..\folder\file.txt",  @"..\..\folder\file.txt" },
         { @"..\..\folder\..\file.txt",       @"file.txt",            @"..\..\file.txt",         @"..\..\file.txt" },
         { @"..\..\folder\..\..\file.txt",    @"file.txt",            @"..\..\..\file.txt",      @"..\..\..\file.txt" },
+        { $@"..\..\{LongFolderName}\file.txt",          $@"{LongFolderName}\file.txt",     $@"..\..\{LongFolderName}\file.txt",  $@"..\..\{LongFolderName}\file.txt" },
+        { $@"..\..\{LongFolderName}\..\file.txt",       @"file.txt",            @"..\..\file.txt",         @"..\..\file.txt" },
+        { $@"..\..\{LongFolderName}\..\..\file.txt",    @"file.txt",            @"..\..\..\file.txt",      @"..\..\..\file.txt" },
 
         { @"folder\..\file.txt",         @"file.txt",    @"file.txt",       @"folder\..\file.txt" },
         { @"folder\..\..\file.txt",      @"file.txt",    @"..\file.txt",    @"folder\..\..\file.txt" },
         { @"folder\..\..\..\file.txt",   @"file.txt",    @"..\..\file.txt", @"folder\..\..\..\file.txt" },
+        { $@"{LongFolderName}\..\file.txt",         @"file.txt",    @"file.txt",       $@"{LongFolderName}\..\file.txt" },
+        { $@"{LongFolderName}\..\..\file.txt",      @"file.txt",    @"..\file.txt",    $@"{LongFolderName}\..\..\file.txt" },
+        { $@"{LongFolderName}\..\..\..\file.txt",   @"file.txt",    @"..\..\file.txt", $@"{LongFolderName}\..\..\..\file.txt" },
 
         { @"folder\subfolder\..\file.txt",       @"folder\file.txt",     @"folder\file.txt",    @"folder\file.txt" },
         { @"folder\subfolder\..\..\file.txt",    @"file.txt",            @"file.txt",           @"folder\..\file.txt" },
         { @"folder\subfolder\..\..\..\file.txt", @"file.txt",            @"..\file.txt",        @"folder\..\..\file.txt" },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\file.txt",       $@"{LongFolderName}\file.txt",     $@"{LongFolderName}\file.txt",    $@"{LongFolderName}\file.txt" },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\..\file.txt",    @"file.txt",            @"file.txt",           $@"{LongFolderName}\..\file.txt" },
+        { $@"{LongFolderName}\{LongSubfolderName}\..\..\..\file.txt", @"file.txt",            @"..\file.txt",        $@"{LongFolderName}\..\..\file.txt" },
 
         { @"..\folder\subfolder\..\file.txt",        @"folder\file.txt",     @"..\folder\file.txt", @"..\folder\file.txt" },
         { @"..\folder\subfolder\..\..\file.txt",     @"file.txt",            @"..\file.txt",        @"..\file.txt" },
         { @"..\folder\subfolder\..\..\..\file.txt",  @"file.txt",            @"..\..\file.txt",     @"..\..\file.txt" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\file.txt",        $@"{LongFolderName}\file.txt",     $@"..\{LongFolderName}\file.txt", $@"..\{LongFolderName}\file.txt" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\..\file.txt",     @"file.txt",            @"..\file.txt",        @"..\file.txt" },
+        { $@"..\{LongFolderName}\{LongSubfolderName}\..\..\..\file.txt",  @"file.txt",            @"..\..\file.txt",     @"..\..\file.txt" },
 
         { @"..\folder\..\subfolder\..\file.txt",         @"file.txt",    @"..\file.txt",        @"..\file.txt" },
         { @"..\folder\..\subfolder\..\..\file.txt",      @"file.txt",    @"..\..\file.txt",     @"..\..\file.txt" },
         { @"..\folder\..\subfolder\..\..\..\file.txt",   @"file.txt",    @"..\..\..\file.txt",  @"..\..\..\file.txt" },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\file.txt",         @"file.txt",    @"..\file.txt",        @"..\file.txt" },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\..\file.txt",      @"file.txt",    @"..\..\file.txt",     @"..\..\file.txt" },
+        { $@"..\{LongFolderName}\..\{LongSubfolderName}\..\..\..\file.txt",   @"file.txt",    @"..\..\..\file.txt",  @"..\..\..\file.txt" },
 
         { @"..\folder\..\..\subfolder\..\file.txt",          @"file.txt",    @"..\..\file.txt",         @"..\..\file.txt" },
         { @"..\folder\..\..\subfolder\..\..\file.txt",       @"file.txt",    @"..\..\..\file.txt",      @"..\..\..\file.txt" },
         { @"..\folder\..\..\subfolder\..\..\..\file.txt",    @"file.txt",    @"..\..\..\..\file.txt",   @"..\..\..\..\file.txt" },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\file.txt",          @"file.txt",    @"..\..\file.txt",         @"..\..\file.txt" },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\..\file.txt",       @"file.txt",    @"..\..\..\file.txt",      @"..\..\..\file.txt" },
+        { $@"..\{LongFolderName}\..\..\{LongSubfolderName}\..\..\..\file.txt",    @"file.txt",    @"..\..\..\..\file.txt",   @"..\..\..\..\file.txt" },
     };
     public static IEnumerable<object[]> MemberData_Qualified_Redundant_DriveAndRoot_DoubleDot =>
         from t in TestPaths_Redundant_DoubleDot
@@ -598,6 +730,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\.\folder\..\",      @"",            @"..\",          @"..\" },
         { @"..\.\folder\..\..",    @"",            @"..\..",        @"..\.." },
         { @"..\.\folder\..\..\",   @"",            @"..\..\",       @"..\..\" },
+        { $@"..\.\{LongFolderName}",          $@"{LongFolderName}",      $@"..\{LongFolderName}",    $@"..\{LongFolderName}" },
+        { $@"..\.\{LongFolderName}\",         $@"{LongFolderName}\",     $@"..\{LongFolderName}\",   $@"..\{LongFolderName}\" },
+        { $@"..\.\{LongFolderName}\..",       @"",            @"..",           @"..\" },
+        { $@"..\.\{LongFolderName}\..\",      @"",            @"..\",          @"..\" },
+        { $@"..\.\{LongFolderName}\..\..",    @"",            @"..\..",        @"..\.." },
+        { $@"..\.\{LongFolderName}\..\..\",   @"",            @"..\..\",       @"..\..\" },
 
         { @"..\folder\.",          @"folder",      @"..\folder",    @"..\folder" },
         { @"..\folder\.\",         @"folder\",     @"..\folder\",   @"..\folder\" },
@@ -605,6 +743,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"..\folder\.\..\",      @"",            @"..\",          @"..\" },
         { @"..\folder\.\..\..",    @"",            @"..\..",        @"..\.." },
         { @"..\folder\.\..\..\",   @"",            @"..\..\",       @"..\..\" },
+        { $@"..\{LongFolderName}\.",          $@"{LongFolderName}",      $@"..\{LongFolderName}",    $@"..\{LongFolderName}" },
+        { $@"..\{LongFolderName}\.\",         $@"{LongFolderName}\",     $@"..\{LongFolderName}\",   $@"..\{LongFolderName}\" },
+        { $@"..\{LongFolderName}\.\..",       @"",            @"..",           @"..\" },
+        { $@"..\{LongFolderName}\.\..\",      @"",            @"..\",          @"..\" },
+        { $@"..\{LongFolderName}\.\..\..",    @"",            @"..\..",        @"..\.." },
+        { $@"..\{LongFolderName}\.\..\..\",   @"",            @"..\..\",       @"..\..\" },
 
         { @"folder\.\subfolder\..",        @"folder",      @"folder",   @"folder\" },
         { @"folder\.\subfolder\..\",       @"folder\",     @"folder\",  @"folder\" },
@@ -612,6 +756,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"folder\.\subfolder\..\..\",    @"",            @"",         @"folder\..\" },
         { @"folder\.\subfolder\..\..\..",  @"",            @"..",       @"folder\..\.." },
         { @"folder\.\subfolder\..\..\..\", @"",            @"..\",      @"folder\..\..\" },
+        { $@"{LongFolderName}\.\{LongSubfolderName}\..",        $@"{LongFolderName}",      $@"{LongFolderName}",   $@"{LongFolderName}\" },
+        { $@"{LongFolderName}\.\{LongSubfolderName}\..\",       $@"{LongFolderName}\",     $@"{LongFolderName}\",  $@"{LongFolderName}\" },
+        { $@"{LongFolderName}\.\{LongSubfolderName}\..\..",     @"",            @"",         $@"{LongFolderName}\.." },
+        { $@"{LongFolderName}\.\{LongSubfolderName}\..\..\",    @"",            @"",         $@"{LongFolderName}\..\" },
+        { $@"{LongFolderName}\.\{LongSubfolderName}\..\..\..",  @"",            @"..",       $@"{LongFolderName}\..\.." },
+        { $@"{LongFolderName}\.\{LongSubfolderName}\..\..\..\", @"",            @"..\",      $@"{LongFolderName}\..\..\" },
 
         { @".\folder\.\subfolder\..",        @"folder",      @".\folder",   @".\folder" },
         { @".\folder\.\subfolder\..\",       @"folder\",     @".\folder\",  @".\folder\" },
@@ -621,6 +771,12 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         //{ @".\folder\.\subfolder\..\..\..\", @"",            @".\..\",      @".\..\" },
         { @".\folder\.\subfolder\..\..\..",  @"",            @"..",       @".\.." },
         { @".\folder\.\subfolder\..\..\..\", @"",            @"..\",      @".\..\" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\..",        $@"{LongFolderName}",      $@".\{LongFolderName}",   $@".\{LongFolderName}" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\..\",       $@"{LongFolderName}\",     $@".\{LongFolderName}\",  $@".\{LongFolderName}\" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\..\..",     @"",            @".",          @".\" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\..\..\",    @"",            @".\",         @".\" },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\..\..\..",  @"",            @"..",       @".\.." },
+        { $@".\{LongFolderName}\.\{LongSubfolderName}\..\..\..\", @"",            @"..\",      @".\..\" },
     };
     public static IEnumerable<object[]> MemberData_Qualified_Redundant_DriveAndRoot_Combined =>
         from t in TestPaths_Redundant_Combined
@@ -660,22 +816,32 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"...\",          @"...\",            @"...\",            @"...\" },
         { @"folder\...",    @"folder\",         @"folder\",         @"folder\..." },
         { @"folder\...\",   @"folder\...\",     @"folder\...\",     @"folder\...\" },
+        { $@"{LongFolderName}\...",    $@"{LongFolderName}\",         $@"{LongFolderName}\",         $@"{LongFolderName}\..." },
+        { $@"{LongFolderName}\...\",   $@"{LongFolderName}\...\",     $@"{LongFolderName}\...\",     $@"{LongFolderName}\...\" },
 
         { @"....",          @"",                @"",                @"...." },
         { @"....\",         @"....\",           @"....\",           @"....\" },
         { @"folder\....",   @"folder\",         @"folder\",         @"folder\...." },
         { @"folder\....\",  @"folder\....\",    @"folder\....\",    @"folder\....\" },
+        { $@"{LongFolderName}\....",   $@"{LongFolderName}\",         $@"{LongFolderName}\",         $@"{LongFolderName}\...." },
+        { $@"{LongFolderName}\....\",  $@"{LongFolderName}\....\",    $@"{LongFolderName}\....\",    $@"{LongFolderName}\....\" },
 
         // Starting with more than 2 dots
         { @"...\subfolder",             @"...\subfolder",           @"...\subfolder",          @"...\subfolder" },
         { @"...\subfolder\",            @"...\subfolder\",          @"...\subfolder\",         @"...\subfolder\" },
         { @"...\file.txt",              @"...\file.txt",            @"...\file.txt",           @"...\file.txt" },
         { @"...\subfolder\file.txt",    @"...\subfolder\file.txt",  @"...\subfolder\file.txt", @"...\subfolder\file.txt" },
+        { $@"...\{LongSubfolderName}",             $@"...\{LongSubfolderName}",           $@"...\{LongSubfolderName}",          $@"...\{LongSubfolderName}" },
+        { $@"...\{LongSubfolderName}\",            $@"...\{LongSubfolderName}\",          $@"...\{LongSubfolderName}\",         $@"...\{LongSubfolderName}\" },
+        { $@"...\{LongSubfolderName}\file.txt",    $@"...\{LongSubfolderName}\file.txt",  $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt" },
 
         { @"....\subfolder",            @"....\subfolder",          @"....\subfolder",          @"....\subfolder" },
         { @"....\subfolder\",           @"....\subfolder\",         @"....\subfolder\",         @"....\subfolder\" },
         { @"....\file.txt",             @"....\file.txt",           @"....\file.txt",           @"....\file.txt" },
         { @"....\subfolder\file.txt",   @"....\subfolder\file.txt", @"....\subfolder\file.txt", @"....\subfolder\file.txt" },
+        { $@"....\{LongSubfolderName}",            $@"....\{LongSubfolderName}",          $@"....\{LongSubfolderName}",          $@"....\{LongSubfolderName}" },
+        { $@"....\{LongSubfolderName}\",           $@"....\{LongSubfolderName}\",         $@"....\{LongSubfolderName}\",         $@"....\{LongSubfolderName}\" },
+        { $@"....\{LongSubfolderName}\file.txt",   $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt" },
 
         // file/folder ending in dot
         { @"dot.",               @"dot",            @"dot",             @"dot." },
@@ -684,9 +850,14 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"folder\dot.\",       @"folder\dot\",    @"folder\dot\",     @"folder\dot.\" },
         { @"dot.\subfolder",     @"dot\subfolder",  @"dot\subfolder",   @"dot.\subfolder" },
         { @"dot.\subfolder\",    @"dot\subfolder\", @"dot\subfolder\",  @"dot.\subfolder\" },
+        { $@"{LongFolderName}\dot.",  $@"{LongFolderName}\dot",  $@"{LongFolderName}\dot",  $@"{LongFolderName}\dot." },
+        { $@"{LongFolderName}\dot.\", $@"{LongFolderName}\dot\", $@"{LongFolderName}\dot\", $@"{LongFolderName}\dot.\" },
+        { $@"dot.\{LongSubfolderName}",  $@"dot\{LongSubfolderName}",  $@"dot\{LongSubfolderName}",  $@"dot.\{LongSubfolderName}" },
+        { $@"dot.\{LongSubfolderName}\", $@"dot\{LongSubfolderName}\", $@"dot\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\" },
 
         { @"dot.\file.txt",              @"dot\file.txt",            @"dot\file.txt",           @"dot.\file.txt" },
         { @"dot.\subfolder\file.txt",    @"dot\subfolder\file.txt",  @"dot\subfolder\file.txt", @"dot.\subfolder\file.txt" },
+        { $@"dot.\{LongSubfolderName}\file.txt", $@"dot\{LongSubfolderName}\file.txt",  $@"dot\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt" },
     };
     public static IEnumerable<object[]> MemberData_Qualified_NoRedundancy_DriveAndRoot_EdgeCases =>
         from t in TestPaths_NoRedundancy_EdgeCases
@@ -735,6 +906,13 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"...\.\subfolder\.\",     @"...\subfolder\",    @"...\subfolder\",   @"...\subfolder\",  @"...\subfolder\" },
         { @"...\.\subfolder\.\.",    @"...\subfolder",     @"...\subfolder",    @"...\subfolder",   @"...\subfolder" },
         { @"...\.\subfolder\.\.\",   @"...\subfolder\",    @"...\subfolder\",   @"...\subfolder\",  @"...\subfolder\" },
+        { $@"...\{LongSubfolderName}\.",     $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}" },
+        { $@"...\{LongSubfolderName}\.\",    $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\" },
+        { $@"...\{LongSubfolderName}\.\.",   $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}" },
+        { $@"...\{LongSubfolderName}\.\.\",  $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\" },
+        { $@"...\.\{LongSubfolderName}\.\",   $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\" },
+        { $@"...\.\{LongSubfolderName}\.\.",  $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}",  $@"...\{LongSubfolderName}" },
+        { $@"...\.\{LongSubfolderName}\.\.\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\", $@"...\{LongSubfolderName}\" },
 
         { @"...\.\file.txt",                 @"...\file.txt",              @"...\file.txt",             @"...\file.txt",            @"...\file.txt" },
         { @"...\.\.\file.txt",               @"...\file.txt",              @"...\file.txt",             @"...\file.txt",            @"...\file.txt" },
@@ -742,6 +920,10 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"...\subfolder\.\.\file.txt",     @"...\subfolder\file.txt",    @"...\subfolder\file.txt",   @"...\subfolder\file.txt",  @"...\subfolder\file.txt" },
         { @"...\.\subfolder\.\file.txt",     @"...\subfolder\file.txt",    @"...\subfolder\file.txt",   @"...\subfolder\file.txt",  @"...\subfolder\file.txt" },
         { @"...\.\subfolder\.\.\file.txt",   @"...\subfolder\file.txt",    @"...\subfolder\file.txt",   @"...\subfolder\file.txt",  @"...\subfolder\file.txt" },
+        { $@"...\{LongSubfolderName}\.\file.txt",   $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt" },
+        { $@"...\{LongSubfolderName}\.\.\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt" },
+        { $@"...\.\{LongSubfolderName}\.\file.txt",   $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt" },
+        { $@"...\.\{LongSubfolderName}\.\.\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt", $@"...\{LongSubfolderName}\file.txt" },
 
         // Folder with 4 dots
         { @"....\.",     @"",      @"",    @"....\",   @"...." },
@@ -756,6 +938,13 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"....\.\subfolder\.\",    @"....\subfolder\",    @"....\subfolder\",     @"....\subfolder\",  @"....\subfolder\" },
         { @"....\.\subfolder\.\.",   @"....\subfolder",     @"....\subfolder",      @"....\subfolder",   @"....\subfolder" },
         { @"....\.\subfolder\.\.\",  @"....\subfolder\",    @"....\subfolder\",     @"....\subfolder\",  @"....\subfolder\" },
+        { $@"....\{LongSubfolderName}\.",    $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}" },
+        { $@"....\{LongSubfolderName}\.\",   $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\" },
+        { $@"....\{LongSubfolderName}\.\.",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}" },
+        { $@"....\{LongSubfolderName}\.\.\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\" },
+        { $@"....\.\{LongSubfolderName}\.\",   $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", @"....\{LongSubfolderName}\" },
+        { $@"....\.\{LongSubfolderName}\.\.",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  @"....\{LongSubfolderName}" },
+        { $@"....\.\{LongSubfolderName}\.\.\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", @"....\{LongSubfolderName}\" },
 
         { @"....\.\file.txt",                @"....\file.txt",              @"....\file.txt",               @"....\file.txt",            @"....\file.txt" },
         { @"....\.\.\file.txt",              @"....\file.txt",              @"....\file.txt",               @"....\file.txt",            @"....\file.txt" },
@@ -763,6 +952,10 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"....\subfolder\.\.\file.txt",    @"....\subfolder\file.txt",    @"....\subfolder\file.txt",     @"....\subfolder\file.txt",  @"....\subfolder\file.txt" },
         { @"....\.\subfolder\.\file.txt",    @"....\subfolder\file.txt",    @"....\subfolder\file.txt",     @"....\subfolder\file.txt",  @"....\subfolder\file.txt" },
         { @"....\.\subfolder\.\.\file.txt",  @"....\subfolder\file.txt",    @"....\subfolder\file.txt",     @"....\subfolder\file.txt",  @"....\subfolder\file.txt" },
+        { $@"....\{LongSubfolderName}\.\file.txt",   $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt" },
+        { $@"....\{LongSubfolderName}\.\.\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt" },
+        { $@"....\.\{LongSubfolderName}\.\file.txt",   $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt" },
+        { $@"....\.\{LongSubfolderName}\.\.\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt", $@"....\{LongSubfolderName}\file.txt" },
         
         // file/folder ending in dot
         { @"dot.\.",     @"dot",    @"dot",     @"dot.\",  @"dot." },
@@ -777,6 +970,13 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"dot.\.\subfolder\.\",    @"dot\subfolder\",    @"dot\subfolder\",   @"dot.\subfolder\",  @"dot.\subfolder\" },
         { @"dot.\.\subfolder\.\.",   @"dot\subfolder",     @"dot\subfolder",    @"dot.\subfolder",   @"dot.\subfolder" },
         { @"dot.\.\subfolder\.\.\",  @"dot\subfolder\",    @"dot\subfolder\",   @"dot.\subfolder\",  @"dot.\subfolder\" },
+        { $@"dot.\{LongSubfolderName}\.",    $@"dot\{LongSubfolderName}",  $@"dot\{LongSubfolderName}",  $@"dot.\{LongSubfolderName}",  $@"dot.\{LongSubfolderName}" },
+        { $@"dot.\{LongSubfolderName}\.\",   $@"dot\{LongSubfolderName}\", $@"dot\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\" },
+        { $@"dot.\{LongSubfolderName}\.\.",  $@"dot\{LongSubfolderName}",  $@"dot\{LongSubfolderName}",  $@"dot.\{LongSubfolderName}",  $@"dot.\{LongSubfolderName}" },
+        { $@"dot.\{LongSubfolderName}\.\.\", $@"dot\{LongSubfolderName}\", $@"dot\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\" },
+        { $@"dot.\.\{LongSubfolderName}\.\",   $@"dot\{LongSubfolderName}\", $@"dot\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\" },
+        { $@"dot.\.\{LongSubfolderName}\.\.",  $@"dot\{LongSubfolderName}",  $@"dot\{LongSubfolderName}",  $@"dot.\{LongSubfolderName}",  $@"dot.\{LongSubfolderName}" },
+        { $@"dot.\.\{LongSubfolderName}\.\.\", $@"dot\{LongSubfolderName}\", $@"dot\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\", $@"dot.\{LongSubfolderName}\" },
 
         { @"dot.\.\file.txt",                @"dot\file.txt",              @"dot\file.txt",             @"dot.\file.txt",           @"dot.\file.txt" },
         { @"dot.\.\.\file.txt",              @"dot\file.txt",              @"dot\file.txt",             @"dot.\file.txt",           @"dot.\file.txt" },
@@ -784,6 +984,10 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"dot.\subfolder\.\.\file.txt",    @"dot\subfolder\file.txt",    @"dot\subfolder\file.txt",   @"dot.\subfolder\file.txt", @"dot.\subfolder\file.txt" },
         { @"dot.\.\subfolder\.\file.txt",    @"dot\subfolder\file.txt",    @"dot\subfolder\file.txt",   @"dot.\subfolder\file.txt", @"dot.\subfolder\file.txt" },
         { @"dot.\.\subfolder\.\.\file.txt",  @"dot\subfolder\file.txt",    @"dot\subfolder\file.txt",   @"dot.\subfolder\file.txt", @"dot.\subfolder\file.txt" },
+        { $@"dot.\{LongSubfolderName}\.\file.txt",     $@"dot\{LongSubfolderName}\file.txt", $@"dot\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt" },
+        { $@"dot.\{LongSubfolderName}\.\.\file.txt",   $@"dot\{LongSubfolderName}\file.txt", $@"dot\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt" },
+        { $@"dot.\.\{LongSubfolderName}\.\file.txt",   $@"dot\{LongSubfolderName}\file.txt", $@"dot\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt" },
+        { $@"dot.\.\{LongSubfolderName}\.\.\file.txt", $@"dot\{LongSubfolderName}\file.txt", $@"dot\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt", $@"dot.\{LongSubfolderName}\file.txt" },
     };
     public static IEnumerable<object[]> MemberData_Qualified_Redundant_DriveAndRoot_SingleDot_EdgeCases =>
         from t in TestPaths_Redundant_SingleDot_EdgeCases
@@ -830,6 +1034,13 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"...\..\subfolder\..\",       @"",        @"",       @"...\..\",    @"" },
         { @"...\..\subfolder\..\..",     @"",        @"..",     @"...\..\..",  @"" },
         { @"...\..\subfolder\..\..\",    @"",        @"..\",    @"...\..\..\", @"" },
+        { $@"...\{LongSubfolderName}\..",           @"",        @"",       @"...\",       @"..." },
+        { $@"...\{LongSubfolderName}\..\",          @"...\",    @"...\",   @"...\",       @"...\" },
+        { $@"...\{LongSubfolderName}\..\..",        @"",        @"",       @"...\..",     @"" },
+        { $@"...\{LongSubfolderName}\..\..\",       @"",        @"",       @"...\..\",    @"" },
+        { $@"...\..\{LongSubfolderName}\..\",       @"",        @"",       @"...\..\",    @"" },
+        { $@"...\..\{LongSubfolderName}\..\..",     @"",        @"..",     @"...\..\..",  @"" },
+        { $@"...\..\{LongSubfolderName}\..\..\",    @"",        @"..\",    @"...\..\..\", @"" },
 
         { @"...\..\file.txt",                    @"file.txt",        @"file.txt",       @"...\..\file.txt",    @"file.txt" },
         { @"...\..\..\file.txt",                 @"file.txt",        @"..\file.txt",    @"...\..\..\file.txt", @"file.txt" },
@@ -837,6 +1048,10 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"...\subfolder\..\..\file.txt",       @"file.txt",        @"file.txt",       @"...\..\file.txt",    @"file.txt" },
         { @"...\..\subfolder\..\file.txt",       @"file.txt",        @"file.txt",       @"...\..\file.txt",    @"file.txt" },
         { @"...\..\subfolder\..\..\file.txt",    @"file.txt",        @"..\file.txt",    @"...\..\..\file.txt", @"file.txt" },
+        { $@"...\{LongSubfolderName}\..\file.txt",          @"...\file.txt",    @"...\file.txt",   @"...\file.txt",       @"...\file.txt" },
+        { $@"...\{LongSubfolderName}\..\..\file.txt",       @"file.txt",        @"file.txt",       @"...\..\file.txt",    @"file.txt" },
+        { $@"...\..\{LongSubfolderName}\..\file.txt",       @"file.txt",        @"file.txt",       @"...\..\file.txt",    @"file.txt" },
+        { $@"...\..\{LongSubfolderName}\..\..\file.txt",    @"file.txt",        @"..\file.txt",    @"...\..\..\file.txt", @"file.txt" },
 
         // Folder with 4 dots
         { @"....\..",        @"",    @"",       @"....\..",     @"" },
@@ -851,6 +1066,13 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"....\..\subfolder\..\",      @"",       @"",        @"....\..\",    @"" },
         { @"....\..\subfolder\..\..",    @"",       @"..",      @"....\..\..",  @"" },
         { @"....\..\subfolder\..\..\",   @"",       @"..\",     @"....\..\..\", @"" },
+        { $@"....\{LongSubfolderName}\..",          @"",       @"",        @"....\",       @"...." },
+        { $@"....\{LongSubfolderName}\..\",         @"....\",  @"....\",   @"....\",       @"....\" },
+        { $@"....\{LongSubfolderName}\..\..",       @"",       @"",        @"....\..",     @"" },
+        { $@"....\{LongSubfolderName}\..\..\",      @"",       @"",        @"....\..\",    @"" },
+        { $@"....\..\{LongSubfolderName}\..\",      @"",       @"",        @"....\..\",    @"" },
+        { $@"....\..\{LongSubfolderName}\..\..",    @"",       @"..",      @"....\..\..",  @"" },
+        { $@"....\..\{LongSubfolderName}\..\..\",   @"",       @"..\",     @"....\..\..\", @"" },
 
         { @"....\..\file.txt",                   @"file.txt",        @"file.txt",       @"....\..\file.txt",    @"file.txt" },
         { @"....\..\..\file.txt",                @"file.txt",        @"..\file.txt",    @"....\..\..\file.txt", @"file.txt" },
@@ -858,6 +1080,10 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"....\subfolder\..\..\file.txt",      @"file.txt",        @"file.txt",       @"....\..\file.txt",    @"file.txt" },
         { @"....\..\subfolder\..\file.txt",      @"file.txt",        @"file.txt",       @"....\..\file.txt",    @"file.txt" },
         { @"....\..\subfolder\..\..\file.txt",   @"file.txt",        @"..\file.txt",    @"....\..\..\file.txt", @"file.txt" },
+        { $@"....\{LongSubfolderName}\..\file.txt",         @"....\file.txt",   @"....\file.txt",  @"....\file.txt",       @"....\file.txt" },
+        { $@"....\{LongSubfolderName}\..\..\file.txt",      @"file.txt",        @"file.txt",       @"....\..\file.txt",    @"file.txt" },
+        { $@"....\..\{LongSubfolderName}\..\file.txt",      @"file.txt",        @"file.txt",       @"....\..\file.txt",    @"file.txt" },
+        { $@"....\..\{LongSubfolderName}\..\..\file.txt",   @"file.txt",        @"..\file.txt",    @"....\..\..\file.txt", @"file.txt" },
         
         // file/folder ending in dot
         { @"dot.\..",     @"",    @"",      @"dot.\..",      @"" },
@@ -872,6 +1098,13 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"dot.\..\subfolder\..\",      @"",        @"",       @"dot.\..\",    @"" },
         { @"dot.\..\subfolder\..\..",    @"",        @"..",     @"dot.\..\..",  @"" },
         { @"dot.\..\subfolder\..\..\",   @"",        @"..\",    @"dot.\..\..\", @"" },
+        { $@"dot.\{LongSubfolderName}\..",          @"dot",     @"dot",    @"dot.\",       @"dot." },
+        { $@"dot.\{LongSubfolderName}\..\",         @"dot\",    @"dot\",   @"dot.\",       @"dot.\" },
+        { $@"dot.\{LongSubfolderName}\..\..",       @"",        @"",       @"dot.\..",     @"" },
+        { $@"dot.\{LongSubfolderName}\..\..\",      @"",        @"",       @"dot.\..\",    @"" },
+        { $@"dot.\..\{LongSubfolderName}\..\",      @"",        @"",       @"dot.\..\",    @"" },
+        { $@"dot.\..\{LongSubfolderName}\..\..",    @"",        @"..",     @"dot.\..\..",  @"" },
+        { $@"dot.\..\{LongSubfolderName}\..\..\",   @"",        @"..\",    @"dot.\..\..\", @"" },
 
         { @"dot.\..\file.txt",                   @"file.txt",       @"file.txt",       @"dot.\..\file.txt",     @"file.txt" },
         { @"dot.\..\..\file.txt",                @"file.txt",       @"..\file.txt",    @"dot.\..\..\file.txt",  @"file.txt" },
@@ -879,6 +1112,10 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { @"dot.\subfolder\..\..\file.txt",      @"file.txt",       @"file.txt",       @"dot.\..\file.txt",     @"file.txt" },
         { @"dot.\..\subfolder\..\file.txt",      @"file.txt",       @"file.txt",       @"dot.\..\file.txt",     @"file.txt" },
         { @"dot.\..\subfolder\..\..\file.txt",   @"file.txt",       @"..\file.txt",    @"dot.\..\..\file.txt",  @"file.txt" },
+        { $@"dot.\{LongSubfolderName}\..\file.txt",         @"dot\file.txt",   @"dot\file.txt",   @"dot.\file.txt",        @"dot.\file.txt" },
+        { $@"dot.\{LongSubfolderName}\..\..\file.txt",      @"file.txt",       @"file.txt",       @"dot.\..\file.txt",     @"file.txt" },
+        { $@"dot.\..\{LongSubfolderName}\..\file.txt",      @"file.txt",       @"file.txt",       @"dot.\..\file.txt",     @"file.txt" },
+        { $@"dot.\..\{LongSubfolderName}\..\..\file.txt",   @"file.txt",       @"..\file.txt",    @"dot.\..\..\file.txt",  @"file.txt" },
     };
     public static IEnumerable<object[]> MemberData_Qualified_Redundant_DriveAndRoot_DoubleDot_EdgeCases =>
         from t in TestPaths_Redundant_DoubleDot_EdgeCases
