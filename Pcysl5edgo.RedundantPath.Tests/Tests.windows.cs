@@ -942,9 +942,9 @@ public class RedundantSegmentsTests_Windows : RedundantSegmentsTestsBase
         { $@"....\{LongSubfolderName}\.\",   $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\" },
         { $@"....\{LongSubfolderName}\.\.",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}" },
         { $@"....\{LongSubfolderName}\.\.\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\" },
-        { $@"....\.\{LongSubfolderName}\.\",   $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", @"....\{LongSubfolderName}\" },
-        { $@"....\.\{LongSubfolderName}\.\.",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  @"....\{LongSubfolderName}" },
-        { $@"....\.\{LongSubfolderName}\.\.\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", @"....\{LongSubfolderName}\" },
+        { $@"....\.\{LongSubfolderName}\.\",   $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\" },
+        { $@"....\.\{LongSubfolderName}\.\.",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}",  $@"....\{LongSubfolderName}" },
+        { $@"....\.\{LongSubfolderName}\.\.\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\", $@"....\{LongSubfolderName}\" },
 
         { @"....\.\file.txt",                @"....\file.txt",              @"....\file.txt",               @"....\file.txt",            @"....\file.txt" },
         { @"....\.\.\file.txt",              @"....\file.txt",              @"....\file.txt",               @"....\file.txt",            @"....\file.txt" },
