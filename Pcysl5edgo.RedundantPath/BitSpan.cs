@@ -71,7 +71,7 @@ public static class BitSpan
     /// <param name="source">A reference to the first element of a span of at least 32 UTF-16 code units to scan.</param>
     /// <param name="dot">When this method returns, contains a bitmask where each set bit indicates the position of a '.' character in the input.</param>
     /// <returns>A bitmask where each set bit indicates the position of a '/' character in the input.</returns>
-    private static uint Get(ref ushort source, out uint dot)
+    public static uint Get(ref ushort source, out uint dot)
     {
         if (Vector512.IsHardwareAccelerated)
         {
@@ -134,7 +134,7 @@ public static class BitSpan
     /// <param name="dot">When this method returns, contains a bitmask where each set bit indicates the position of a '.' character in the input.</param>
     /// <param name="length">The number of characters to scan. Must be between 1 and 32, inclusive.</param>
     /// <returns>A bitmask with bits set at positions where a '/' character was found in the input sequence.</returns>
-    private static uint Get(ref ushort source, out uint dot, int length)
+    public static uint Get(ref ushort source, out uint dot, int length)
     {
         Debug.Assert((uint)(length - 1) < 31u);
         uint separator = 0, _dot = 0;
@@ -188,7 +188,7 @@ public static class BitSpan
         return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot, length);
     }
 
-    private static ulong Get(ref ushort source, out ulong dot)
+    public static ulong Get(ref ushort source, out ulong dot)
     {
         if (Vector512.IsHardwareAccelerated)
         {
@@ -252,7 +252,7 @@ public static class BitSpan
         }
     }
 
-    private static ulong Get(ref ushort source, out ulong dot, int length)
+    public static ulong Get(ref ushort source, out ulong dot, int length)
     {
         if (length >= 32)
         {
@@ -290,7 +290,7 @@ public static class BitSpan
         return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot, out altSeparator, length);
     }
 
-    private static uint Get(ref ushort source, out uint dot, out uint altSeparator)
+    public static uint Get(ref ushort source, out uint dot, out uint altSeparator)
     {
         if (Vector512.IsHardwareAccelerated)
         {
@@ -363,7 +363,7 @@ public static class BitSpan
         return separator;
     }
 
-    private static uint Get(ref ushort source, out uint dot, out uint altSeparator, int length)
+    public static uint Get(ref ushort source, out uint dot, out uint altSeparator, int length)
     {
         Debug.Assert((uint)(length - 1) < 31u);
         uint separator = 0, _dot = 0, _altSeparator = 0;
