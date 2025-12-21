@@ -738,6 +738,50 @@ public static partial class ReversePath
         }
 
         #region Write
+        public readonly void Write(ref char destination)
+        {
+            nuint destinationOffset = default;
+            if (startsWithSeparator)
+            {
+                if (segmentCount == 0)
+                {
+                    destination = '/';
+                    return;
+                }
+
+                destinationOffset = WriteSegmentsWithStartingSeparator(ref destination);
+            }
+            else if (parentSegmentCount > 0)
+            {
+                destinationOffset = WriteParentSegments(ref destination);
+                if (segmentCount != 0)
+                {
+                    destinationOffset += WriteSegmentsWithStartingSeparator(ref Unsafe.Add(ref destination, destinationOffset));
+                }
+            }
+            else if (hasLeadingCurrentSegment)
+            {
+                destination = '.';
+                if (segmentCount == 0)
+                {
+                    destinationOffset = 1;
+                }
+                else
+                {
+                    destinationOffset = WriteSegmentsWithStartingSeparator(ref Unsafe.Add(ref destination, 1)) + 1;
+                }
+            }
+            else if (segmentCount != 0)
+            {
+                destinationOffset = WriteSegmentsWithoutStartingSeparator(ref destination);
+            }
+
+            if (endsWithSeparator)
+            {
+                Unsafe.Add(ref destination, destinationOffset) = '/';
+            }
+        }
+
         public readonly void Write(Span<char> destination)
         {
             if (startsWithSeparator)
@@ -784,7 +828,20 @@ public static partial class ReversePath
             Debug.Assert(destination.IsEmpty);
         }
 
-        public static void Create(Span<char> span, UnixInfo arg) => arg.Write(span);
+        public static void Create(Span<char> span, UnixInfo arg) => arg.Write(ref MemoryMarshal.GetReference(span));
+
+        private readonly nuint WriteParentSegments(ref char destination)
+        {
+            Unsafe.Add(ref destination, 1) = destination = '.';
+            for (int i = parentSegmentCount - 2, offset = 2; i >= 0; --i, offset += 3)
+            {
+                Unsafe.Add(ref destination, offset + 2) = '.';
+                Unsafe.Add(ref destination, offset + 1) = '.';
+                Unsafe.Add(ref destination, offset) = '/';
+            }
+
+            return (nuint)(parentSegmentCount * 3 - 1);
+        }
 
         private readonly Span<char> WriteParentSegments(Span<char> destination)
         {
@@ -799,6 +856,27 @@ public static partial class ReversePath
             return destination[(parentSegmentCount * 3 - 1)..];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static nuint Copy(ref char destination, ref char source, ref (int Offset, int Length) segment)
+        {
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<char, byte>(ref destination), ref Unsafe.As<char, byte>(ref Unsafe.Add(ref source, segment.Offset)), (uint)segment.Length << 1);
+            return (nuint)segment.Length;
+        }
+
+        private readonly nuint WriteSegmentsWithStartingSeparator(ref char destination)
+        {
+            nuint destinationOffset = 0;
+            ref var segmentRef = ref MemoryMarshal.GetReference(segmentSpan);
+            ref var sourceRef = ref MemoryMarshal.GetReference(textSpan);
+            for (int segmentIndex = segmentCount - 1; segmentIndex >= 0; --segmentIndex)
+            {
+                Unsafe.Add(ref destination, destinationOffset) = '/';
+                destinationOffset += Copy(ref Unsafe.Add(ref destination, destinationOffset + 1), ref sourceRef, ref Unsafe.Add(ref segmentRef, segmentIndex)) + 1;
+            }
+
+            return destinationOffset;
+        }
+
         private readonly Span<char> WriteSegmentsWithStartingSeparator(Span<char> destination)
         {
             for (int segmentIndex = segmentCount - 1; segmentIndex >= 0; --segmentIndex)
@@ -810,6 +888,21 @@ public static partial class ReversePath
             }
 
             return destination;
+        }
+
+        private readonly nuint WriteSegmentsWithoutStartingSeparator(ref char destination)
+        {
+            ref var sourceRef = ref MemoryMarshal.GetReference(textSpan);
+            ref var segmentRef = ref MemoryMarshal.GetReference(segmentSpan);
+            int segmentIndex = segmentCount - 1;
+            var destinationOffset = Copy(ref destination, ref sourceRef, ref Unsafe.Add(ref segmentRef, segmentIndex));
+            for (segmentIndex = segmentCount - 2; segmentIndex >= 0; --segmentIndex)
+            {
+                Unsafe.Add(ref destination, destinationOffset) = '/';
+                destinationOffset += Copy(ref Unsafe.Add(ref destination, destinationOffset + 1), ref sourceRef, ref Unsafe.Add(ref segmentRef, segmentIndex)) + 1;
+            }
+
+            return destinationOffset;
         }
 
         private readonly Span<char> WriteSegmentsWithoutStartingSeparator(Span<char> destination)
