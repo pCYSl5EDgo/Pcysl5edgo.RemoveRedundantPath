@@ -24,20 +24,28 @@ public class RelativePathBenchmarks
 #if WINDOWS_NT
         return ReversePath.RemoveRedundantSegmentsWindows(Source, true);
 #else
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, true);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Each);
 #endif
     }
 
-
+#if WINDOWS_NT
     [Benchmark]
     public string ReverseSimd()
     {
-#if WINDOWS_NT
         return ReversePath.RemoveRedundantSegmentsWindows(Source, false);
-#else
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, false);
-#endif
     }
+#else
+[Benchmark]
+    public string ReverseSimd32()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Simd32);
+    }
+
+    public string ReverseSimd64()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Simd64);
+    }
+#endif
 
     [Benchmark(Baseline = true)]
     public string Old()

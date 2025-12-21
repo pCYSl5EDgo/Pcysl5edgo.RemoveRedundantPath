@@ -6,8 +6,15 @@ namespace Pcysl5edgo.RedundantPath;
 
 public static partial class ReversePath
 {
+    public enum Kind
+    {
+        Each,
+        Simd32,
+        Simd64,
+    }
+
     [SkipLocalsInit]
-    public static string RemoveRedundantSegmentsUnix(string? path, bool forceEach = false)
+    public static string RemoveRedundantSegmentsUnix(string? path, Kind kind = Kind.Each)
     {
         if (path is null)
         {
@@ -36,7 +43,12 @@ public static partial class ReversePath
         var info = new UnixInfo(span, _, startsWithSeparator, endsWithSeparator);
         try
         {
-            var answerLength = forceEach ? info.InitializeEach() : info.Initialize();
+            var answerLength = kind switch
+            {
+                Kind.Simd32 => info.Initialize32(),
+                Kind.Simd64 => info.Initialize64(),
+                _ => info.InitializeEach(),
+            };
             if (answerLength >= path.Length)
             {
                 return path;

@@ -32,9 +32,9 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
 
     [Theory]
     [MemberData(nameof(TestPaths_Unix))]
-    public void UnixReverseTest(string original, string expected)
+    public void UnixReverseSimd32Test(string original, string expected)
     {
-        var actual = ReversePath.RemoveRedundantSegmentsUnix(original);
+        var actual = ReversePath.RemoveRedundantSegmentsUnix(original, ReversePath.Kind.Simd32);
         if (ReferenceEquals(original, expected))
         {
             Assert.True(ReferenceEquals(expected, actual));
@@ -43,16 +43,28 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
         {
             Assert.Equal(expected, actual);
         }
+    }
 
-        Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnix(actual));
-        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnix(actual)));
+    [Theory]
+    [MemberData(nameof(TestPaths_Unix))]
+    public void UnixReverseSimd64Test(string original, string expected)
+    {
+        var actual = ReversePath.RemoveRedundantSegmentsUnix(original, ReversePath.Kind.Simd64);
+        if (ReferenceEquals(original, expected))
+        {
+            Assert.True(ReferenceEquals(expected, actual));
+        }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
     }
 
     [Theory]
     [MemberData(nameof(TestPaths_Unix))]
     public void UnixReverseEachTest(string original, string expected)
     {
-        var actual = ReversePath.RemoveRedundantSegmentsUnix(original, true);
+        var actual = ReversePath.RemoveRedundantSegmentsUnix(original, ReversePath.Kind.Each);
         if (ReferenceEquals(original, expected))
         {
             Assert.True(ReferenceEquals(expected, actual));
@@ -62,8 +74,8 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
             Assert.Equal(expected, actual);
         }
 
-        Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, true));
-        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, true)));
+        Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, ReversePath.Kind.Each));
+        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, ReversePath.Kind.Each)));
     }
 
     #endregion

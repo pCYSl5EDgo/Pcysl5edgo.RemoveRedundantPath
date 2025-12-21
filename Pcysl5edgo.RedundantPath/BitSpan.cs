@@ -175,6 +175,108 @@ public static class BitSpan
         return separator;
     }
 
+    public static ulong Get(ReadOnlySpan<char> source, out ulong dot)
+    {
+        Debug.Assert(source.Length >= 32);
+        return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot);
+    }
+
+    public static ulong Get(ReadOnlySpan<char> source, out ulong dot, int length)
+    {
+        Debug.Assert(source.Length >= length);
+        Debug.Assert(length > 0);
+        return Get(ref Unsafe.As<char, ushort>(ref MemoryMarshal.GetReference(source)), out dot, length);
+    }
+
+    private static ulong Get(ref ushort source, out ulong dot)
+    {
+        if (Vector512.IsHardwareAccelerated)
+        {
+            var v0 = Vector512.LoadUnsafe(ref source);
+            var v1 = Vector512.LoadUnsafe(ref source, 32);
+            dot = Vector512.Narrow(Vector512.Equals(v0, Vector512.Create((ushort)'.')), Vector512.Equals(v1, Vector512.Create((ushort)'.'))).ExtractMostSignificantBits();
+            return Vector512.Narrow(Vector512.Equals(v0, Vector512.Create((ushort)'/')), Vector512.Equals(v1, Vector512.Create((ushort)'/'))).ExtractMostSignificantBits();
+        }
+        else if (Vector256.IsHardwareAccelerated)
+        {
+            var v0 = Vector256.LoadUnsafe(ref source);
+            var v1 = Vector256.LoadUnsafe(ref source, 16);
+            var v2 = Vector256.LoadUnsafe(ref source, 32);
+            var v3 = Vector256.LoadUnsafe(ref source, 48);
+            var d0 = (ulong)Vector256.Narrow(Vector256.Equals(v0, Vector256.Create((ushort)'.')), Vector256.Equals(v1, Vector256.Create((ushort)'.'))).ExtractMostSignificantBits();
+            var d1 = (ulong)Vector256.Narrow(Vector256.Equals(v2, Vector256.Create((ushort)'.')), Vector256.Equals(v3, Vector256.Create((ushort)'.'))).ExtractMostSignificantBits();
+            var s0 = (ulong)Vector256.Narrow(Vector256.Equals(v0, Vector256.Create((ushort)'/')), Vector256.Equals(v1, Vector256.Create((ushort)'/'))).ExtractMostSignificantBits();
+            var s1 = (ulong)Vector256.Narrow(Vector256.Equals(v2, Vector256.Create((ushort)'/')), Vector256.Equals(v3, Vector256.Create((ushort)'/'))).ExtractMostSignificantBits();
+            dot = d0 | (d1 << 32);
+            return s0 | (s1 << 32);
+        }
+        else if (Vector128.IsHardwareAccelerated)
+        {
+            var v0 = Vector128.LoadUnsafe(ref source);
+            var v1 = Vector128.LoadUnsafe(ref source, 8);
+            var v2 = Vector128.LoadUnsafe(ref source, 16);
+            var v3 = Vector128.LoadUnsafe(ref source, 24);
+            var v4 = Vector128.LoadUnsafe(ref source, 32);
+            var v5 = Vector128.LoadUnsafe(ref source, 40);
+            var v6 = Vector128.LoadUnsafe(ref source, 48);
+            var v7 = Vector128.LoadUnsafe(ref source, 56);
+            var d0 = (ulong)Vector128.Narrow(Vector128.Equals(v0, Vector128.Create((ushort)'.')), Vector128.Equals(v1, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
+            var d1 = (ulong)Vector128.Narrow(Vector128.Equals(v2, Vector128.Create((ushort)'.')), Vector128.Equals(v3, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
+            var d2 = (ulong)Vector128.Narrow(Vector128.Equals(v4, Vector128.Create((ushort)'.')), Vector128.Equals(v5, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
+            var d3 = (ulong)Vector128.Narrow(Vector128.Equals(v6, Vector128.Create((ushort)'.')), Vector128.Equals(v7, Vector128.Create((ushort)'.'))).ExtractMostSignificantBits();
+            var s0 = (ulong)Vector128.Narrow(Vector128.Equals(v0, Vector128.Create((ushort)'/')), Vector128.Equals(v1, Vector128.Create((ushort)'/'))).ExtractMostSignificantBits();
+            var s1 = (ulong)Vector128.Narrow(Vector128.Equals(v2, Vector128.Create((ushort)'/')), Vector128.Equals(v3, Vector128.Create((ushort)'/'))).ExtractMostSignificantBits();
+            var s2 = (ulong)Vector128.Narrow(Vector128.Equals(v4, Vector128.Create((ushort)'/')), Vector128.Equals(v5, Vector128.Create((ushort)'/'))).ExtractMostSignificantBits();
+            var s3 = (ulong)Vector128.Narrow(Vector128.Equals(v6, Vector128.Create((ushort)'/')), Vector128.Equals(v7, Vector128.Create((ushort)'/'))).ExtractMostSignificantBits();
+            dot = d0 | (d1 << 16) | (d2 << 32) | (d3 << 48);
+            return s0 | (s1 << 16) | (s2 << 32) | (s3 << 48);
+        }
+        else
+        {
+            ulong separator = default, _dot = default;
+            for (int i = 0; i < 64; i++)
+            {
+                switch (Unsafe.Add(ref source, i))
+                {
+                    case '/':
+                        separator |= 1u << i;
+                        break;
+                    case '.':
+                        _dot |= 1u << i;
+                        break;
+                }
+            }
+
+            dot = _dot;
+            return separator;
+        }
+    }
+
+    private static ulong Get(ref ushort source, out ulong dot, int length)
+    {
+        if (length >= 32)
+        {
+            uint s0 = Get(ref source, out uint d0);
+            if (length == 32)
+            {
+                dot = d0;
+                return s0;
+            }
+            else
+            {
+                uint s1 = Get(ref Unsafe.Add(ref source, 32), out uint d1, length & 31);
+                dot = d0 | ((ulong)d1 << 32);
+                return s0 | ((ulong)s1 << 32);
+            }
+        }
+        else
+        {
+            uint s0 = Get(ref source, out uint d0, length);
+            dot = d0;
+            return s0;
+        }
+    }
+
     public static uint Get(ReadOnlySpan<char> source, out uint dot, out uint altSeparator)
     {
         Debug.Assert(source.Length >= 32);
@@ -322,6 +424,13 @@ public static class BitSpan
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void CalculateUpperBitWall(int length, out ulong wall)
+    {
+        Debug.Assert((uint)length <= 64u);
+        wall = (ulong.MaxValue >>> length) << length;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint ZeroHighBits(uint value, int index)
     {
         if (Bmi2.IsSupported)
@@ -333,11 +442,33 @@ public static class BitSpan
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ulong ZeroHighBits(ulong value, int index)
+    {
+        if (Bmi2.X64.IsSupported)
+        {
+            return Bmi2.X64.ZeroHighBits(value, (ulong)(index & 63));
+        }
+
+        return value & (~(ulong.MaxValue << index));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint ResetLowestSetBit(uint value)
     {
         if (Bmi1.IsSupported)
         {
             return Bmi1.ResetLowestSetBit(value);
+        }
+
+        return value & (value - 1);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ulong ResetLowestSetBit(ulong value)
+    {
+        if (Bmi1.X64.IsSupported)
+        {
+            return Bmi1.X64.ResetLowestSetBit(value);
         }
 
         return value & (value - 1);
