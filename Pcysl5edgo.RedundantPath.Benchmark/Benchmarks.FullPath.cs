@@ -25,7 +25,7 @@ public class FullPathBenchmarks
 #if WINDOWS_NT
         return ReversePath.RemoveRedundantSegmentsWindows(Source, true);
 #else
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Each);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReservePath.Kind.Each);
 #endif
     }
 
