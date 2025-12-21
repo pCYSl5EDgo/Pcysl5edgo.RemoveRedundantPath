@@ -281,14 +281,14 @@ public static partial class ReversePath
 #pragma warning restore IDE0018
             if ((textSpan.Length & BitMask) == default)
             {
-                separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out dotCurrent);
+                separatorCurrent = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount + BitCount)), out dotCurrent);
             }
             else
             {
-                separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out dotCurrent, textSpan.Length & BitMask);
+                separatorCurrent = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount + BitCount)), out dotCurrent, textSpan.Length & BitMask);
             }
 
-            separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out dotPrev);
+            separatorPrev = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount)), out dotPrev);
             BitSpan.CalculateUpperBitWall((textSpan.Length - 1) & BitMask, out separatorWall);
             separatorWall |= separatorCurrent >>> 1;
             current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
@@ -300,7 +300,7 @@ public static partial class ReversePath
                 separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
                 separatorCurrent = separatorPrev;
                 dotCurrent = dotPrev;
-                separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out dotPrev);
+                separatorPrev = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount)), out dotPrev);
                 current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
                 parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
                 separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | separatorWall);
@@ -369,14 +369,14 @@ public static partial class ReversePath
 #pragma warning restore IDE0018
             if ((textSpan.Length & BitMask) == default)
             {
-                separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out dotCurrent);
+                separatorCurrent = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount + BitCount)), out dotCurrent);
             }
             else
             {
-                separatorCurrent = BitSpan.Get(textSpan[(batchIndex * BitCount + BitCount)..], out dotCurrent, textSpan.Length & BitMask);
+                separatorCurrent = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount + BitCount)), out dotCurrent, textSpan.Length & BitMask);
             }
 
-            separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out dotPrev);
+            separatorPrev = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount)), out dotPrev);
             BitSpan.CalculateUpperBitWall((textSpan.Length - 1) & BitMask, out separatorWall);
             separatorWall |= separatorCurrent >>> 1;
             current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
@@ -388,7 +388,7 @@ public static partial class ReversePath
                 separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
                 separatorCurrent = separatorPrev;
                 dotCurrent = dotPrev;
-                separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out dotPrev);
+                separatorPrev = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount)), out dotPrev);
                 current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
                 parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
                 separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | separatorWall);
@@ -857,7 +857,7 @@ public static partial class ReversePath
             return handler.ToString();
         }
 
-        public readonly char this[int index] => this.textSpan[index];
+        public readonly char this[int index] => textSpan[index];
 #endif
         #endregion
     }
