@@ -400,17 +400,8 @@ public static partial class ReversePath
                     else
                     {
                         var tempSeparator = separator;
-                        if (Bmi1.IsSupported)
+                        for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator = BitSpan.ResetLowestSetBit(tempSeparator))
                         {
-                            for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator = Bmi1.ResetLowestSetBit(tempSeparator))
-                            {
-                            }
-                        }
-                        else
-                        {
-                            for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator &= tempSeparator - 1)
-                            {
-                            }
                         }
 
                         textIndex = loopLowerLimit - 1;

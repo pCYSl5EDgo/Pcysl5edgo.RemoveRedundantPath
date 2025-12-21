@@ -331,4 +331,15 @@ public static class BitSpan
 
         return value & (~(uint.MaxValue << index));
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static uint ResetLowestSetBit(uint value)
+    {
+        if (Bmi1.IsSupported)
+        {
+            return Bmi1.ResetLowestSetBit(value);
+        }
+
+        return value & (value - 1);
+    }
 }
