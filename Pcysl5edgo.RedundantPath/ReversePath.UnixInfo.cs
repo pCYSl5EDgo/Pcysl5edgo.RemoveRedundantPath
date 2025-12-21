@@ -318,6 +318,7 @@ public static partial class ReversePath
             var loopLowerLimit = batchIndex * BitCount;
             var loopUpperLimit = loopLowerLimit + BitCount;
             int nextSeparatorIndex, length;
+            #region ContinueLength > 0
             if (continueLength > 0)
             {
                 if (BitSpan.GetBit(separator, textIndex))
@@ -378,6 +379,16 @@ public static partial class ReversePath
             else
             {
                 Debug.Assert(continueLength == 0, $"{nameof(continueLength)}: {continueLength}");
+            }
+            #endregion
+
+            if ((textIndex & BitMask) != BitMask)
+            {
+                var clearStartIndex = textIndex + 1;
+                separator = BitSpan.ZeroHighBits(separator, clearStartIndex);
+                separatorDuplicate = BitSpan.ZeroHighBits(separatorDuplicate, clearStartIndex);
+                parent = BitSpan.ZeroHighBits(parent, clearStartIndex);
+                current = BitSpan.ZeroHighBits(current, clearStartIndex);
             }
 
             if ((parent | current | separatorDuplicate) == 0)
