@@ -38,12 +38,12 @@ public class RelativePathBenchmarks
 [Benchmark]
     public string ReverseSimd32()
     {
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Simd32);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd32);
     }
 
     public string ReverseSimd64()
     {
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Simd64);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd64);
     }
 #endif
 
