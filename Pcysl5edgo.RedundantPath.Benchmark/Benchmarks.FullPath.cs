@@ -25,7 +25,7 @@ public class FullPathBenchmarks
 #if WINDOWS_NT
         return ReversePath.RemoveRedundantSegmentsWindows(Source, true);
 #else
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReservePath.Kind.Each);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Each);
 #endif
     }
 
@@ -39,13 +39,13 @@ public class FullPathBenchmarks
     [Benchmark]
     public string ReverseSimd32()
     {
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReservePath.Kind.Simd32);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd32);
     }
 
     [Benchmark]
     public string ReverseSimd64()
     {
-        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReservePath.Kind.Simd32);
+        return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd32);
     }
 #endif
 
