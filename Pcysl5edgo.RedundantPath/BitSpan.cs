@@ -417,17 +417,15 @@ public static class BitSpan
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void CalculateUpperBitWall(int length, out uint wall)
+    public static ulong CalculateSeparatorWall(ulong separator, int length)
     {
-        Debug.Assert((uint)length <= 32u);
-        wall = (uint.MaxValue >>> length) << length;
+        return (separator >>> 1) | ((ulong.MaxValue >>> length) << length);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void CalculateUpperBitWall(int length, out ulong wall)
+    public static uint CalculateSeparatorWall(uint separator, int length)
     {
-        Debug.Assert((uint)length <= 64u);
-        wall = (ulong.MaxValue >>> length) << length;
+        return (separator >>> 1) | ((uint.MaxValue >>> length) << length);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

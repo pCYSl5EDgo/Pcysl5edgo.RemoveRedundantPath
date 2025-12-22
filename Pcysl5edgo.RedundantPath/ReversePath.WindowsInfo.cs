@@ -236,8 +236,7 @@ public static partial class ReversePath
             }
 
             hasBeenChanged |= altSeparator != default;
-            BitSpan.CalculateUpperBitWall(textSpan.Length - 1, out separatorWall);
-            separatorWall |= (separator >>> 1);
+            separatorWall = BitSpan.CalculateSeparatorWall(separator, textSpan.Length - 1);
             current = dot & ((separator << 1) | OneBit) & separatorWall;
             parent = dot & (dot << 1) & ((separator << 2) | (OneBit << 1)) & separatorWall;
             separatorDuplicate = separator & (separatorWall | (separator << 1) | OneBit);
