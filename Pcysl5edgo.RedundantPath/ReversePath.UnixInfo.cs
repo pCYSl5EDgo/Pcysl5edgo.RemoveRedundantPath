@@ -36,25 +36,30 @@ public static partial class ReversePath
         {
             if (++segmentCount > segmentSpan.Length)
             {
-                if (rentalArray is null)
-                {
-                    rentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
-                    var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(rentalArray.AsSpan());
-                    segmentSpan.CopyTo(temp);
-                    segmentSpan = temp;
-                }
-                else
-                {
-                    var tempRentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
-                    var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(tempRentalArray.AsSpan());
-                    segmentSpan.CopyTo(temp);
-                    ArrayPool<long>.Shared.Return(rentalArray);
-                    rentalArray = tempRentalArray;
-                    segmentSpan = temp;
-                }
+                EnsureStackCapacity();
             }
 
             segmentSpan[segmentCount - 1] = new(offset, length);
+        }
+
+        private void EnsureStackCapacity()
+        {
+            if (rentalArray is null)
+            {
+                rentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
+                var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(rentalArray.AsSpan());
+                segmentSpan.CopyTo(temp);
+                segmentSpan = temp;
+            }
+            else
+            {
+                var tempRentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
+                var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(tempRentalArray.AsSpan());
+                segmentSpan.CopyTo(temp);
+                ArrayPool<long>.Shared.Return(rentalArray);
+                rentalArray = tempRentalArray;
+                segmentSpan = temp;
+            }
         }
 
         private int AddOrUniteSegment(int offset, int length, int expectedOffset)
