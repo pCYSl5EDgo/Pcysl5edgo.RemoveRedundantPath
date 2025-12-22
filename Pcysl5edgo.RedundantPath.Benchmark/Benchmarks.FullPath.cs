@@ -7,7 +7,7 @@ namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 // For more information on the VS BenchmarkDotNet Diagnosers see https://learn.microsoft.com/visualstudio/profiling/profiling-with-benchmark-dotnet
 [ShortRunJob]
-[DisassemblyDiagnoser(maxDepth: 6, exportHtml: true)]
+//[DisassemblyDiagnoser(maxDepth: 6, exportHtml: true)]
 [BenchmarkCategory("FullPath")]
 public class FullPathBenchmarks
 {
