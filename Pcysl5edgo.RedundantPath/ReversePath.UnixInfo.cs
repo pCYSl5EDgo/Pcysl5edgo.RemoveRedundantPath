@@ -201,7 +201,7 @@ public static partial class ReversePath
             {
                 if (mode == -1)
                 {
-                    hasLeadingCurrentSegment = true;
+                    hasLeadingCurrentSegment = parentSegmentCount == 0;
                 }
                 else
                 {
@@ -213,7 +213,7 @@ public static partial class ReversePath
             return CalculateLength(segmentCharCount);
         }
 
-        private int CalculateLength(int segmentCharCount)
+        private readonly int CalculateLength(int segmentCharCount)
         {
             Debug.Assert(segmentCount != 0 || segmentCharCount == 0);
             var sum = segmentCount + segmentCharCount + (endsWithSeparator ? 1 : 0);
@@ -227,7 +227,6 @@ public static partial class ReversePath
             }
             else
             {
-                hasLeadingCurrentSegment = false;
                 return sum + (3 * parentSegmentCount) - 1;
             }
         }
