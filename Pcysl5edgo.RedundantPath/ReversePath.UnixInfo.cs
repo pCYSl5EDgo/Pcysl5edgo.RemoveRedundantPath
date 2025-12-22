@@ -275,10 +275,10 @@ public static partial class ReversePath
             Debug.Assert(textSpan.Length >= BitCount + 1);
             const int BitMask = BitCount - 1;
             const uint OneBit = 1u;
-            int segmentCharCount = 0, textIndex = textSpan.Length - 1, batchCount = (textSpan.Length + BitMask) >>> BitShift, batchIndex = batchCount - 2;
 #pragma warning disable IDE0018
             uint separatorCurrent, separatorPrev, dotCurrent, dotPrev, separatorWall, current, parent, separatorDuplicate;
 #pragma warning restore IDE0018
+            int segmentCharCount = 0, textIndex = textSpan.Length - 1, batchCount = (textSpan.Length + BitMask) >>> BitShift, batchIndex = batchCount - 2;
             if ((textSpan.Length & BitMask) == default)
             {
                 separatorCurrent = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount + BitCount)), out dotCurrent);
@@ -363,10 +363,10 @@ public static partial class ReversePath
             Debug.Assert(textSpan.Length >= BitCount + 1);
             const int BitMask = BitCount - 1;
             const ulong OneBit = 1ul;
-            int segmentCharCount = 0, textIndex = textSpan.Length - 1, batchCount = (textSpan.Length + BitMask) >>> BitShift, batchIndex = batchCount - 2;
 #pragma warning disable IDE0018
             ulong separatorCurrent, separatorPrev, dotCurrent, dotPrev, separatorWall, current, parent, separatorDuplicate;
 #pragma warning restore IDE0018
+            int segmentCharCount = 0, textIndex = textSpan.Length - 1, batchCount = (textSpan.Length + BitMask) >>> BitShift, batchIndex = batchCount - 2;
             if ((textSpan.Length & BitMask) == default)
             {
                 separatorCurrent = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount + BitCount)), out dotCurrent);
