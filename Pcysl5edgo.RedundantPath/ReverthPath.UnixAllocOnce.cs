@@ -324,7 +324,7 @@ public static partial class ReversePath
             Debug.Assert(textSpan.Length > BitCount);
             int batchCount = (textSpan.Length + BitMask) >>> BitShift;
             var bitArraySpan = (stackalloc UnixTuple64[batchCount]);
-            var segmentCapacity = InitializeBitArray(ref MemoryMarshal.GetReference(bitArraySpan));
+            var segmentCapacity = InitializeBitArray(bitArraySpan);
             var segmentSpan = (stackalloc (int Offset, int Length)[segmentCapacity]);
             return ToString(path, segmentSpan, bitArraySpan);
         }
@@ -332,14 +332,13 @@ public static partial class ReversePath
         private string ToString(string path, scoped Span<(int Offset, int Length)> segmentSpan, scoped Span<UnixTuple64> bitArraySpan)
         {
             var textIndex = textSpan.Length - 1;
-            var batchIndex = bitArraySpan.Length - 1;
-            var continueLength = ProcessLoop(segmentSpan, ref textIndex, 0, bitArraySpan[batchIndex], batchIndex);
-            while (--batchIndex > 0)
+            var batchIndex = bitArraySpan.Length;
+            int continueLength = 0;
+            while (--batchIndex >= 0)
             {
                 continueLength = ProcessLoop(segmentSpan, ref textIndex, continueLength, bitArraySpan[batchIndex], batchIndex);
             }
 
-            continueLength = ProcessLoop(segmentSpan, ref textIndex, continueLength, bitArraySpan[0], 0);
             if (continueLength > 0)
             {
                 ProcessLastContinuation(segmentSpan, continueLength);
@@ -356,7 +355,7 @@ public static partial class ReversePath
             var bitArrayArray = ArrayPool<ulong>.Shared.Rent(batchCount * 4);
             try
             {
-                var segmentCapacity = InitializeBitArray(ref Unsafe.As<ulong, UnixTuple64>(ref MemoryMarshal.GetArrayDataReference(bitArrayArray)));
+                var segmentCapacity = InitializeBitArray(MemoryMarshal.Cast<ulong, UnixTuple64>(bitArrayArray.AsSpan(0, batchCount * 4)));
                 if (segmentCapacity > 128)
                 {
                     var segmentArray = ArrayPool<ulong>.Shared.Rent(segmentCapacity);
@@ -382,7 +381,7 @@ public static partial class ReversePath
             }
         }
 
-        private readonly int InitializeBitArray(ref UnixTuple64 tupleRef)
+        private readonly int InitializeBitArray(Span<UnixTuple64> tupleSpan)
         {
             const int BitShift = 6, BitCount = 1 << BitShift, BitMask = BitCount - 1;
             int batchCount = (textSpan.Length + BitMask) >>> BitShift, batchIndex = batchCount - 2;
@@ -404,7 +403,7 @@ public static partial class ReversePath
             current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
             parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
             separatorDuplicate = separatorCurrent & separatorWall;
-            var segmentCapacity = (Unsafe.Add(ref tupleRef, batchIndex + 1) = new(separatorCurrent, separatorDuplicate, current, parent)).EstimateSegmentCapacity();
+            var segmentCapacity = (tupleSpan[batchIndex + 1] = new(separatorCurrent, separatorDuplicate, current, parent)).EstimateSegmentCapacity();
 
             while (--batchIndex >= 0)
             {
@@ -415,14 +414,14 @@ public static partial class ReversePath
                 separatorDuplicate = separatorCurrent & separatorWall;
                 current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
                 parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-                segmentCapacity += (Unsafe.Add(ref tupleRef, batchIndex + 1) = new(separatorCurrent, separatorDuplicate, current, parent)).EstimateSegmentCapacity();
+                segmentCapacity += (tupleSpan[batchIndex + 1] = new(separatorCurrent, separatorDuplicate, current, parent)).EstimateSegmentCapacity();
             }
 
             separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
             separatorDuplicate = separatorPrev & separatorWall;
             current = dotPrev & ((separatorPrev << 1) | OneBit) & separatorWall;
             parent = dotPrev & (dotPrev << 1) & ((separatorPrev << 2) | (OneBit << 1)) & separatorWall;
-            return (tupleRef = new(separatorPrev, separatorDuplicate, current, parent)).EstimateSegmentCapacity() + segmentCapacity + 1;
+            return (tupleSpan[0] = new(separatorPrev, separatorDuplicate, current, parent)).EstimateSegmentCapacity() + segmentCapacity + 1;
         }
 
         public string ToStringLTE64(string path)
