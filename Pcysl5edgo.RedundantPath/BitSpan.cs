@@ -254,27 +254,23 @@ public static class BitSpan
 
     public static ulong Get(ref ushort source, out ulong dot, int length)
     {
-        if (length >= 32)
+        Debug.Assert((uint)(length - 1) < 63);
+        ulong separator = default, _dot = default;
+        for (int i = 0; i < length; i++)
         {
-            uint s0 = Get(ref source, out uint d0);
-            if (length == 32)
+            switch (Unsafe.Add(ref source, i))
             {
-                dot = d0;
-                return s0;
-            }
-            else
-            {
-                uint s1 = Get(ref Unsafe.Add(ref source, 32), out uint d1, length & 31);
-                dot = d0 | ((ulong)d1 << 32);
-                return s0 | ((ulong)s1 << 32);
+                case '/':
+                    separator |= 1ul << i;
+                    break;
+                case '.':
+                    _dot |= 1ul << i;
+                    break;
             }
         }
-        else
-        {
-            uint s0 = Get(ref source, out uint d0, length);
-            dot = d0;
-            return s0;
-        }
+
+        dot = _dot;
+        return separator;
     }
 
     public static uint Get(ReadOnlySpan<char> source, out uint dot, out uint altSeparator)
