@@ -403,7 +403,7 @@ public static partial class ReversePath
             separatorWall = BitSpan.CalculateSeparatorWall(separatorCurrent, textSpan.Length - 1);
             current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
             parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textSpan.Length - 1) : default));
+            separatorDuplicate = separatorCurrent & separatorWall;
             var segmentCapacity = (Unsafe.Add(ref tupleRef, batchIndex + 1) = new(separatorCurrent, separatorDuplicate, current, parent)).EstimateSegmentCapacity();
 
             while (--batchIndex >= 0)
@@ -412,14 +412,14 @@ public static partial class ReversePath
                 dotCurrent = dotPrev;
                 separatorCurrent = separatorPrev;
                 separatorPrev = BitSpan.Get(textSpan[(batchIndex * BitCount)..], out dotPrev);
-                separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | separatorWall);
+                separatorDuplicate = separatorCurrent & separatorWall;
                 current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
                 parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
                 segmentCapacity += (Unsafe.Add(ref tupleRef, batchIndex + 1) = new(separatorCurrent, separatorDuplicate, current, parent)).EstimateSegmentCapacity();
             }
 
             separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
-            separatorDuplicate = separatorPrev & ((separatorPrev << 1) | separatorWall);
+            separatorDuplicate = separatorPrev & separatorWall;
             current = dotPrev & ((separatorPrev << 1) | OneBit) & separatorWall;
             parent = dotPrev & (dotPrev << 1) & ((separatorPrev << 2) | (OneBit << 1)) & separatorWall;
             return (tupleRef = new(separatorPrev, separatorDuplicate, current, parent)).EstimateSegmentCapacity() + segmentCapacity + 1;
@@ -439,7 +439,7 @@ public static partial class ReversePath
             separatorWall = BitSpan.CalculateSeparatorWall(separator, textSpan.Length - 1);
             current = dot & ((separator << 1) | OneBit) & separatorWall;
             parent = dot & (dot << 1) & ((separator << 2) | (OneBit << 1)) & separatorWall;
-            separatorDuplicate = separator & (separator >>> 1);
+            separatorDuplicate = separator & separatorWall;
             UnixTuple64 tuple = new(separator, separatorDuplicate, current, parent);
             if (tuple.Any == default)
             {

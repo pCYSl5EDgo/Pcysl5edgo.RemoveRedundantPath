@@ -254,7 +254,7 @@ public static partial class ReversePath
             separatorWall = BitSpan.CalculateSeparatorWall(separator, textSpan.Length - 1);
             current = dot & ((separator << 1) | OneBit) & separatorWall;
             parent = dot & (dot << 1) & ((separator << 2) | (OneBit << 1)) & separatorWall;
-            separatorDuplicate = separator & (separatorWall | (separator << 1) | OneBit);
+            separatorDuplicate = separator & separatorWall;
             if ((current | parent | separatorDuplicate) == 0)
             {
                 return textSpan.Length + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
@@ -295,7 +295,7 @@ public static partial class ReversePath
             separatorWall = BitSpan.CalculateSeparatorWall(separatorCurrent, textSpan.Length - 1);
             current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
             parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textSpan.Length - 1) : default));
+            separatorDuplicate = separatorCurrent & separatorWall;
             var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             while (--batchIndex >= 0)
             {
@@ -305,14 +305,14 @@ public static partial class ReversePath
                 separatorPrev = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount)), out dotPrev);
                 current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
                 parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-                separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | separatorWall);
+                separatorDuplicate = separatorCurrent & separatorWall;
                 continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, continueLength, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             }
 
             separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
             current = dotPrev & ((separatorPrev << 1) | OneBit) & separatorWall;
             parent = dotPrev & (dotPrev << 1) & ((separatorPrev << 2) | (OneBit << 1)) & separatorWall;
-            separatorDuplicate = separatorPrev & ((separatorPrev << 1) | OneBit | separatorWall);
+            separatorDuplicate = separatorPrev & separatorWall;
             continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, continueLength, separatorPrev, separatorDuplicate, current, parent, 0);
             if (continueLength > 0)
             {
@@ -340,7 +340,7 @@ public static partial class ReversePath
             separatorWall = BitSpan.CalculateSeparatorWall(separator, textSpan.Length - 1);
             current = dot & ((separator << 1) | OneBit) & separatorWall;
             parent = dot & (dot << 1) & ((separator << 2) | (OneBit << 1)) & separatorWall;
-            separatorDuplicate = separator & (separatorWall | (separator << 1) | OneBit);
+            separatorDuplicate = separator & separatorWall;
             if ((current | parent | separatorDuplicate) == 0)
             {
                 return textSpan.Length + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
@@ -381,7 +381,7 @@ public static partial class ReversePath
             separatorWall = BitSpan.CalculateSeparatorWall(separatorCurrent, textSpan.Length - 1);
             current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
             parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-            separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | (endsWithSeparator ? OneBit << (textSpan.Length - 1) : default));
+            separatorDuplicate = separatorCurrent & separatorWall;
             var continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, 0, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             while (--batchIndex >= 0)
             {
@@ -391,14 +391,14 @@ public static partial class ReversePath
                 separatorPrev = BitSpan.Get(ref Unsafe.As<char, ushort>(ref Unsafe.Add(ref MemoryMarshal.GetReference(textSpan), batchIndex * BitCount)), out dotPrev);
                 current = dotCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask)) & separatorWall;
                 parent = dotCurrent & ((dotCurrent << 1) | (dotPrev >>> BitMask)) & ((separatorCurrent << 2) | (separatorPrev >>> (BitCount - 2))) & separatorWall;
-                separatorDuplicate = separatorCurrent & ((separatorCurrent << 1) | (separatorPrev >>> BitMask) | separatorWall);
+                separatorDuplicate = separatorCurrent & separatorWall;
                 continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, continueLength, separatorCurrent, separatorDuplicate, current, parent, batchIndex + 1);
             }
 
             separatorWall = (separatorCurrent << BitMask) | (separatorPrev >>> 1);
             current = dotPrev & ((separatorPrev << 1) | OneBit) & separatorWall;
             parent = dotPrev & (dotPrev << 1) & ((separatorPrev << 2) | (OneBit << 1)) & separatorWall;
-            separatorDuplicate = separatorPrev & ((separatorPrev << 1) | OneBit | separatorWall);
+            separatorDuplicate = separatorPrev & separatorWall;
             continueLength = ProcessLoop(ref segmentCharCount, ref textIndex, continueLength, separatorPrev, separatorDuplicate, current, parent, 0);
             if (continueLength > 0)
             {
