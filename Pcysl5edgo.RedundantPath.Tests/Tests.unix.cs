@@ -32,6 +32,24 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
 
     [Theory]
     [MemberData(nameof(TestPaths_Unix))]
+    public void UnixAllocOnceTest(string original, string expected)
+    {
+        var actual = ReversePath.RemoveRedundantSegmentsUnixAllocOnce(original);
+        if (ReferenceEquals(original, expected))
+        {
+            Assert.True(ReferenceEquals(expected, actual));
+        }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
+
+        //Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnixAllocOnce(actual));
+        //Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnixAllocOnce(actual)));
+    }
+
+    [Theory]
+    [MemberData(nameof(TestPaths_Unix))]
     public void UnixReverseSimd32Test(string original, string expected)
     {
         var actual = ReversePath.RemoveRedundantSegmentsUnix(original, ReversePath.Kind.Simd32);
