@@ -621,12 +621,13 @@ public static partial class ReversePath
                     else
                     {
                         ref var oldPair = ref LastSegment;
-                        var diff = oldPair.Offset - textIndex - 1;
+                        var diff = oldPair.Offset - nextSeparatorIndex - length - 1;
                         switch (diff)
                         {
                             case 0:
                             case 1:
-                                oldPair = new(nextSeparatorIndex + 1, length += diff);
+                                oldPair.Offset = nextSeparatorIndex + 1;
+                                oldPair.Length += (length += diff);
                                 break;
                             default:
                                 AddSegment(nextSeparatorIndex + 1, length);
