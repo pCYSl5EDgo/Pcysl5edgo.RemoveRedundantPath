@@ -48,6 +48,12 @@ public class FullPathBenchmarks
     {
         return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd32);
     }
+
+    [Benchmark]
+    public string AllocOnce()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixAllocOnce(Source);
+    }
 #endif
 
     [Benchmark(Baseline = true)]

@@ -47,6 +47,12 @@ public class RelativePathBenchmarks
     {
         return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd64);
     }
+
+    [Benchmark]
+    public string AllocOnce()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixAllocOnce(Source);
+    }
 #endif
 
     [Benchmark(Baseline = true)]

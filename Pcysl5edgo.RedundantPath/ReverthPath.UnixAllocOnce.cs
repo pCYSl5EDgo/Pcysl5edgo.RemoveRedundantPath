@@ -51,6 +51,10 @@ public static partial class ReversePath
             {
                 return info.ToStringLTE64(path);
             }
+            else if (span.Length <= 1024)
+            {
+                return info.ToStringGT64LTE1024(path);
+            }
             else
             {
                 return info.ToStringGT1024(path);
