@@ -73,6 +73,58 @@ public static partial class ReversePath
     }
 
     [SkipLocalsInit]
+    public static string RemoveRedundantSegmentsUnixNoTrim(string? path, Kind kind = Kind.Each)
+    {
+        if (path is null)
+        {
+            return "";
+        }
+        else if (path.Length <= 1)
+        {
+            return path;
+        }
+        else if (path.Length == 2)
+        {
+            return path[0] == '/' && (path[1] == '/' || path[1] == '.') ? "/" : path;
+        }
+
+        bool startsWithSeparator = path[0] == '/', endsWithSeparator = path[^1] == '/';
+        var span = path.AsSpan(startsWithSeparator ? 1 : 0, path.Length - (startsWithSeparator ? 1 : 0) - (endsWithSeparator ? 1 : 0));
+        var segmentCapacity = UnixInfo.CalculateMaxSegmentCount(span.Length);
+        var _ = (stackalloc ValueTuple<int, int>[segmentCapacity < 8 ? segmentCapacity : 8]);
+        var info = new UnixInfo(span, _, startsWithSeparator, endsWithSeparator);
+        try
+        {
+            var answerLength = kind switch
+            {
+                Kind.Simd32 => info.Initialize32(),
+                Kind.Simd64 => info.Initialize64(),
+                _ => info.InitializeEach(),
+            };
+            if (answerLength >= path.Length)
+            {
+                return path;
+            }
+            else if (answerLength <= 0)
+            {
+                return "";
+            }
+            else if (info.IsSlashOnly)
+            {
+                return "/";
+            }
+            else
+            {
+                return string.Create(answerLength, info, UnixInfo.Create);
+            }
+        }
+        finally
+        {
+            info.Dispose();
+        }
+    }
+
+    [SkipLocalsInit]
     public static string RemoveRedundantSegmentsWindows(string? path, bool forceEach = false)
     {
         if (path is null || path.Length == 0)

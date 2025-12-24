@@ -94,6 +94,54 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
         Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, ReversePath.Kind.Each));
         Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, ReversePath.Kind.Each)));
     }
+
+    [Theory]
+    [MemberData(nameof(TestPaths_Unix))]
+    public void UnixReverseSimd32NoTrimTest(string original, string expected)
+    {
+        var actual = ReversePath.RemoveRedundantSegmentsUnixNoTrim(original, ReversePath.Kind.Simd32);
+        if (ReferenceEquals(original, expected))
+        {
+            Assert.True(ReferenceEquals(expected, actual));
+        }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(TestPaths_Unix))]
+    public void UnixReverseSimd64NoTrimTest(string original, string expected)
+    {
+        var actual = ReversePath.RemoveRedundantSegmentsUnixNoTrim(original, ReversePath.Kind.Simd64);
+        if (ReferenceEquals(original, expected))
+        {
+            Assert.True(ReferenceEquals(expected, actual));
+        }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(TestPaths_Unix))]
+    public void UnixReverseEachNoTrimTest(string original, string expected)
+    {
+        var actual = ReversePath.RemoveRedundantSegmentsUnixNoTrim(original, ReversePath.Kind.Each);
+        if (ReferenceEquals(original, expected))
+        {
+            Assert.True(ReferenceEquals(expected, actual));
+        }
+        else
+        {
+            Assert.Equal(expected, actual);
+        }
+
+        Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnixNoTrim(actual, ReversePath.Kind.Each));
+        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnixNoTrim(actual, ReversePath.Kind.Each)));
+    }
     #endregion
 
     #region Test data
@@ -280,6 +328,9 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
             { @"/ab0/ab1/ab2/ab3/ab4/ab5/ab6/ab7/ab8/ab9/a10/a11/a12/a13/a14/a15/../../../../../../../../../../../../../../../../..", @"/" },
             { @"../../../../../../../../../../../../../../../../000/001/002/003/004/005/006/007/008/009/00a/00b/00c/00d/00e/00f/010/011/012/../../../../../../../../../../../../../../../../", @"../../../../../../../../../../../../../../../../000/001/002/" },
             { @"../../../../../../../../../../../../../../../../000/001/002/003/004/005/006/007/008/009/00a/00b/00c/00d/00e/00f/010/011/012/013/014/015/016/017/../../../../../../../../../../../../../../../../", @"../../../../../../../../../../../../../../../../000/001/002/003/004/005/006/007/" },
+
+            { @"/1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a/0123456789/abcd", @"/1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a/0123456789/abcd" },
+            { @"////1//ultra_long/chars/heiufhugaehu//////wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/../../gwe/vr/./awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars///wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/./0123456789/abcd", @"/1/ultra_long/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/gwe/vr/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/w3a1025/chars/heiufhugaehu/wafwfre/bve/gwe/vr/ge/awafwbe/wffawfw/vaw/awjfoe/awvnt/awf3/4thrd/4ghbse3q/vge3tg4rg/0123456789/abcd" },
         };
     #endregion
 }

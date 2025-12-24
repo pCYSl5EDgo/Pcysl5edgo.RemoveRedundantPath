@@ -6,7 +6,7 @@ using System.Linq;
 namespace Pcysl5edgo.RedundantPath.Benchmark;
 
 // For more information on the VS BenchmarkDotNet Diagnosers see https://learn.microsoft.com/visualstudio/profiling/profiling-with-benchmark-dotnet
-[LongRunJob]
+[ShortRunJob]
 //[DisassemblyDiagnoser(maxDepth: 6, exportHtml: true)]
 [BenchmarkCategory("FullPath")]
 public class FullPathBenchmarks
@@ -47,6 +47,24 @@ public class FullPathBenchmarks
     public string ReverseSimd64()
     {
         return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd32);
+    }
+
+    [Benchmark]
+    public string ReverseEachNoTrim()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixNoTrim(Source, ReversePath.Kind.Each);
+    }
+
+    [Benchmark]
+    public string ReverseSimd32NoTrim()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixNoTrim(Source, ReversePath.Kind.Simd32);
+    }
+
+    [Benchmark]
+    public string ReverseSimd64NoTrim()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixNoTrim(Source, ReversePath.Kind.Simd32);
     }
 
     [Benchmark]

@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Pcysl5edgo.RedundantPath.Benchmark;
 
-[LongRunJob]
+[ShortRunJob]
 //[DisassemblyDiagnoser(maxDepth: 6, exportHtml: true)]
 [BenchmarkCategory("RelativePath")]
 public class RelativePathBenchmarks
@@ -46,6 +46,24 @@ public class RelativePathBenchmarks
     public string ReverseSimd64()
     {
         return ReversePath.RemoveRedundantSegmentsUnix(Source, ReversePath.Kind.Simd64);
+    }
+
+    [Benchmark]
+    public string ReverseEachNoTrim()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixNoTrim(Source, ReversePath.Kind.Each);
+    }
+
+    [Benchmark]
+    public string ReverseSimd32NoTrim()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixNoTrim(Source, ReversePath.Kind.Simd32);
+    }
+
+    [Benchmark]
+    public string ReverseSimd64NoTrim()
+    {
+        return ReversePath.RemoveRedundantSegmentsUnixNoTrim(Source, ReversePath.Kind.Simd32);
     }
 
     [Benchmark]
