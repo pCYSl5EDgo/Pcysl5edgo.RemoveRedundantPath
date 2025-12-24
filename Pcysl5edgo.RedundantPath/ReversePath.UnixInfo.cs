@@ -416,7 +416,7 @@ public static partial class ReversePath
                 return segmentCharCount;
             }
 
-            return segmentCharCount + AddOrUniteSegment(0, length, length + 2);
+            return segmentCharCount + AddOrUniteSegment(0, length, length + 1);
         }
 
         private int ProcessLoop(ref int segmentCharCount, ref int textIndex, int continueLength, uint separator, uint separatorDuplicate, uint current, uint parent, int batchIndex)

@@ -277,6 +277,11 @@ public static partial class ReversePath
             current = BitSpan.ZeroHighBits(current, clearIndex);
             parent = BitSpan.ZeroHighBits(parent, clearIndex);
         }
+
+        public readonly override string ToString()
+        {
+            return $"{separator}\n{separatorDuplicate}\n{current}\n{parent}";
+        }
     }
 
     private ref struct UnixInfoAllocOnce
@@ -494,7 +499,7 @@ public static partial class ReversePath
             }
             else
             {
-                segmentCharCount += AddOrUniteSegment(segmentSpan, 0, length, length + 2);
+                segmentCharCount += AddOrUniteSegment(segmentSpan, 0, length, length + 1);
             }
         }
 
@@ -655,10 +660,9 @@ public static partial class ReversePath
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int AddSegment(scoped Span<(int Offset, int Length)> segmentSpan, int offset, int length)
+        private void AddSegment(scoped Span<(int Offset, int Length)> segmentSpan, int offset, int length)
         {
             segmentSpan[segmentCount++] = new(offset, length);
-            return length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -676,7 +680,8 @@ public static partial class ReversePath
                 }
             }
 
-            return AddSegment(segmentSpan, offset, length);
+            AddSegment(segmentSpan, offset, length);
+            return length;
         }
 
         private static void CopySingle(Span<char> span, UnixInfoAllocOnce arg)
