@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Pcysl5edgo.RedundantPath.Benchmark;
 
-[ShortRunJob]
+[LongRunJob]
 //[DisassemblyDiagnoser(maxDepth: 6, exportHtml: true)]
 [BenchmarkCategory("RelativePath")]
 public class RelativePathBenchmarks
