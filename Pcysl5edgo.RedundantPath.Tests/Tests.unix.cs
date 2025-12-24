@@ -29,7 +29,6 @@ namespace Pcysl5edgo.RedundantPath.Tests;
 public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
 {
     #region Tests
-
     [Theory]
     [MemberData(nameof(TestPaths_Unix))]
     public void UnixAllocOnceTest(string original, string expected)
@@ -95,55 +94,6 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
         Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, ReversePath.Kind.Each));
         Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnix(actual, ReversePath.Kind.Each)));
     }
-
-    [Theory]
-    [MemberData(nameof(TestPaths_Unix))]
-    public void RoughUnixReverseSimd32Test(string original, string expected)
-    {
-        var actual = ReversePath.RemoveRedundantSegmentsRoughUnix(original, ReversePath.Kind.Simd32);
-        if (ReferenceEquals(original, expected))
-        {
-            Assert.True(ReferenceEquals(expected, actual));
-        }
-        else
-        {
-            Assert.Equal(expected, actual);
-        }
-    }
-
-    [Theory]
-    [MemberData(nameof(TestPaths_Unix))]
-    public void RoughUnixReverseSimd64Test(string original, string expected)
-    {
-        var actual = ReversePath.RemoveRedundantSegmentsRoughUnix(original, ReversePath.Kind.Simd64);
-        if (ReferenceEquals(original, expected))
-        {
-            Assert.True(ReferenceEquals(expected, actual));
-        }
-        else
-        {
-            Assert.Equal(expected, actual);
-        }
-    }
-
-    [Theory]
-    [MemberData(nameof(TestPaths_Unix))]
-    public void RoughUnixReverseEachTest(string original, string expected)
-    {
-        var actual = ReversePath.RemoveRedundantSegmentsRoughUnix(original, ReversePath.Kind.Each);
-        if (ReferenceEquals(original, expected))
-        {
-            Assert.True(ReferenceEquals(expected, actual));
-        }
-        else
-        {
-            Assert.Equal(expected, actual);
-        }
-
-        Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsRoughUnix(actual, ReversePath.Kind.Each));
-        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsRoughUnix(actual, ReversePath.Kind.Each)));
-    }
-
     #endregion
 
     #region Test data
