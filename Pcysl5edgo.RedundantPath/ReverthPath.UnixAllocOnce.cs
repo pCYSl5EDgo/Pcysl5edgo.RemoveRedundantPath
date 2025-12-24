@@ -65,12 +65,12 @@ public static partial class ReversePath
     private ref struct UnixInfoAllocOncePair
     {
         public UnixInfoAllocOnce info;
-        public Span<(int Offset, int Length)> segmentSpan;
+        public ref (int Offset, int Length) segmentRef;
 
-        public UnixInfoAllocOncePair(UnixInfoAllocOnce info, Span<(int Offset, int Length)> segmentSpan)
+        public UnixInfoAllocOncePair(UnixInfoAllocOnce info, ref (int Offset, int Length) segmentRef)
         {
             this.info = info;
-            this.segmentSpan = segmentSpan;
+            this.segmentRef = ref segmentRef;
         }
 
         #region Write
@@ -202,7 +202,6 @@ public static partial class ReversePath
         private readonly nuint WriteSegmentsWithStartingSeparator(ref char destination)
         {
             nuint destinationOffset = 0;
-            ref var segmentRef = ref MemoryMarshal.GetReference(segmentSpan);
             ref var sourceRef = ref MemoryMarshal.GetReference(info.textSpan);
             for (int segmentIndex = info.segmentCount - 1; segmentIndex >= 0; --segmentIndex)
             {
@@ -218,7 +217,7 @@ public static partial class ReversePath
             for (int segmentIndex = info.segmentCount - 1; segmentIndex >= 0; --segmentIndex)
             {
                 destination[0] = '/';
-                var (offset, length) = segmentSpan[segmentIndex];
+                var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
                 info.textSpan.Slice(offset, length).CopyTo(destination[1..]);
                 destination = destination[(length + 1)..];
             }
@@ -229,7 +228,6 @@ public static partial class ReversePath
         private readonly nuint WriteSegmentsWithoutStartingSeparator(ref char destination)
         {
             ref var sourceRef = ref MemoryMarshal.GetReference(info.textSpan);
-            ref var segmentRef = ref MemoryMarshal.GetReference(segmentSpan);
             int segmentIndex = info.segmentCount - 1;
             var destinationOffset = Copy(ref destination, ref sourceRef, ref Unsafe.Add(ref segmentRef, segmentIndex));
             for (segmentIndex = info.segmentCount - 2; segmentIndex >= 0; --segmentIndex)
@@ -244,13 +242,13 @@ public static partial class ReversePath
         private readonly Span<char> WriteSegmentsWithoutStartingSeparator(Span<char> destination)
         {
             int segmentIndex = info.segmentCount - 1;
-            var (offset, length) = segmentSpan[segmentIndex];
+            var (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
             info.textSpan.Slice(offset, length).CopyTo(destination);
             destination = destination[length..];
             for (segmentIndex = info.segmentCount - 2; segmentIndex >= 0; --segmentIndex)
             {
                 destination[0] = '/';
-                (offset, length) = segmentSpan[segmentIndex];
+                (offset, length) = Unsafe.Add(ref segmentRef, segmentIndex);
                 info.textSpan.Slice(offset, length).CopyTo(destination[1..]);
                 destination = destination[(length + 1)..];
             }
@@ -335,25 +333,25 @@ public static partial class ReversePath
             var bitArraySpan = (stackalloc UnixTuple64[batchCount]);
             var segmentCapacity = InitializeBitArray(bitArraySpan);
             var segmentSpan = (stackalloc (int Offset, int Length)[segmentCapacity]);
-            return ToString(path, segmentSpan, bitArraySpan);
+            return ToString(path, ref MemoryMarshal.GetReference(segmentSpan), bitArraySpan);
         }
 
-        private string ToString(string path, scoped Span<(int Offset, int Length)> segmentSpan, scoped Span<UnixTuple64> bitArraySpan)
+        private string ToString(string path, ref (int Offset, int Length) segmentRef, scoped Span<UnixTuple64> bitArraySpan)
         {
             var textIndex = textSpan.Length - 1;
             var batchIndex = bitArraySpan.Length;
             int continueLength = 0;
             while (--batchIndex >= 0)
             {
-                continueLength = ProcessLoop(segmentSpan, ref textIndex, continueLength, bitArraySpan[batchIndex], batchIndex);
+                continueLength = ProcessLoop(ref segmentRef, ref textIndex, continueLength, bitArraySpan[batchIndex], batchIndex);
             }
 
             if (continueLength > 0)
             {
-                ProcessLastContinuation(segmentSpan, continueLength);
+                ProcessLastContinuation(ref segmentRef, continueLength);
             }
 
-            return ToString(path, segmentSpan);
+            return ToString(path, ref segmentRef);
         }
 
         public string ToStringGT1024(string path)
@@ -370,8 +368,7 @@ public static partial class ReversePath
                     var segmentArray = ArrayPool<ulong>.Shared.Rent(segmentCapacity);
                     try
                     {
-                        var segmentSpan = MemoryMarshal.Cast<ulong, (int Offset, int Length)>(segmentArray.AsSpan(0, segmentCapacity));
-                        return ToString(path, segmentSpan, MemoryMarshal.Cast<ulong, UnixTuple64>(bitArrayArray.AsSpan(0, batchCount * 4)));
+                        return ToString(path, ref Unsafe.As<ulong, (int Offset, int Length)>(ref MemoryMarshal.GetArrayDataReference(segmentArray)), MemoryMarshal.Cast<ulong, UnixTuple64>(bitArrayArray.AsSpan(0, batchCount * 4)));
                     }
                     finally
                     {
@@ -381,7 +378,7 @@ public static partial class ReversePath
                 else
                 {
                     var segmentSpan = (stackalloc (int Offset, int Length)[segmentCapacity]);
-                    return ToString(path, segmentSpan, MemoryMarshal.Cast<ulong, UnixTuple64>(bitArrayArray.AsSpan(0, batchCount * 4)));
+                    return ToString(path, ref MemoryMarshal.GetReference(segmentSpan), MemoryMarshal.Cast<ulong, UnixTuple64>(bitArrayArray.AsSpan(0, batchCount * 4)));
                 }
             }
             finally
@@ -468,16 +465,16 @@ public static partial class ReversePath
             var segmentSpan = (stackalloc ValueTuple<int, int>[segmentCapacity]);
 
             var textIndex = textSpan.Length - 1;
-            var continueLength = ProcessLoop(segmentSpan, ref textIndex, 0, tuple, 0);
+            var continueLength = ProcessLoop(ref MemoryMarshal.GetReference(segmentSpan), ref textIndex, 0, tuple, 0);
             if (continueLength > 0)
             {
-                ProcessLastContinuation(segmentSpan, continueLength);
+                ProcessLastContinuation(ref MemoryMarshal.GetReference(segmentSpan), continueLength);
             }
 
-            return ToString(path, segmentSpan);
+            return ToString(path, ref MemoryMarshal.GetReference(segmentSpan));
         }
 
-        private readonly string ToString(string path, Span<(int, int)> segmentSpan)
+        private readonly string ToString(string path, ref (int, int) segmentRef)
         {
             var answerLength = CalculateLength();
             if (answerLength <= 0)
@@ -490,12 +487,12 @@ public static partial class ReversePath
             }
             else
             {
-                var pair = new UnixInfoAllocOncePair(this, segmentSpan);
+                var pair = new UnixInfoAllocOncePair(this, ref segmentRef);
                 return string.Create(answerLength, pair, UnixInfoAllocOncePair.Create);
             }
         }
 
-        private void ProcessLastContinuation(scoped Span<(int Offset, int Length)> segmentSpan, int length)
+        private void ProcessLastContinuation(ref (int Offset, int Length) segmentRef, int length)
         {
             if (parentSegmentCount > 0)
             {
@@ -503,11 +500,11 @@ public static partial class ReversePath
             }
             else
             {
-                segmentCharCount += AddOrUniteSegment(segmentSpan, 0, length, length + 1);
+                segmentCharCount += AddOrUniteSegment(ref segmentRef, 0, length, length + 1);
             }
         }
 
-        private int ProcessLoop(scoped Span<(int Offset, int Length)> segmentSpan, ref int textIndex, int continueLength, UnixTuple64 tuple, int batchIndex)
+        private int ProcessLoop(ref (int Offset, int Length) segmentRef, ref int textIndex, int continueLength, UnixTuple64 tuple, int batchIndex)
         {
             const int BitCount = 64, BitMask = BitCount - 1;
             var loopLowerLimit = batchIndex * BitCount;
@@ -544,11 +541,11 @@ public static partial class ReversePath
                     hasLeadingCurrentSegment = false;
                     if (segmentCount == 0)
                     {
-                        AddSegment(segmentSpan, nextSeparatorIndex + 1, segmentCharCount = length);
+                        AddSegment(ref segmentRef, nextSeparatorIndex + 1, segmentCharCount = length);
                     }
                     else
                     {
-                        ref var oldPair = ref segmentSpan[segmentCount - 1];
+                        ref var oldPair = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
                         var diff = oldPair.Offset - nextSeparatorIndex - length - 1;
                         switch (diff)
                         {
@@ -558,7 +555,7 @@ public static partial class ReversePath
                                 oldPair.Length += (length += diff);
                                 break;
                             default:
-                                AddSegment(segmentSpan, nextSeparatorIndex + 1, length);
+                                AddSegment(ref segmentRef, nextSeparatorIndex + 1, length);
                                 break;
                         }
 
@@ -654,7 +651,7 @@ public static partial class ReversePath
                 }
                 else
                 {
-                    segmentCharCount += AddOrUniteSegment(segmentSpan, nextSeparatorIndex + 1, length, textIndex + 2);
+                    segmentCharCount += AddOrUniteSegment(ref segmentRef, nextSeparatorIndex + 1, length, textIndex + 2);
                 }
 
                 textIndex = nextSeparatorIndex - 1;
@@ -664,18 +661,18 @@ public static partial class ReversePath
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AddSegment(scoped Span<(int Offset, int Length)> segmentSpan, int offset, int length)
+        private void AddSegment(ref (int Offset, int Length) segmentRef, int offset, int length)
         {
-            segmentSpan[segmentCount++] = new(offset, length);
+            Unsafe.Add(ref segmentRef, segmentCount++) = new(offset, length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int AddOrUniteSegment(scoped Span<(int Offset, int Length)> segmentSpan, int offset, int length, int expectedOffset)
+        private int AddOrUniteSegment(ref (int Offset, int Length) segmentRef, int offset, int length, int expectedOffset)
         {
             hasLeadingCurrentSegment = false;
             if (segmentCount > 0)
             {
-                ref var last = ref segmentSpan[segmentCount - 1];
+                ref var last = ref Unsafe.Add(ref segmentRef, segmentCount - 1);
                 if (last.Offset == expectedOffset)
                 {
                     last.Offset = offset;
@@ -684,7 +681,7 @@ public static partial class ReversePath
                 }
             }
 
-            AddSegment(segmentSpan, offset, length);
+            AddSegment(ref segmentRef, offset, length);
             return length;
         }
 

@@ -44,8 +44,8 @@ public class RedundantSegmentsTests_Unix : RedundantSegmentsTestsBase
             Assert.Equal(expected, actual);
         }
 
-        //Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnixAllocOnce(actual));
-        //Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnixAllocOnce(actual)));
+        Assert.Equal(actual, ReversePath.RemoveRedundantSegmentsUnixAllocOnce(actual));
+        Assert.True(ReferenceEquals(actual, ReversePath.RemoveRedundantSegmentsUnixAllocOnce(actual)));
     }
 
     [Theory]
