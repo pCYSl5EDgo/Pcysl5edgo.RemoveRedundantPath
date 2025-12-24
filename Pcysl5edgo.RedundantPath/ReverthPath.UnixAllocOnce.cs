@@ -609,48 +609,48 @@ public static partial class ReversePath
             }
             #endregion
 
-            if ((textIndex & BitMask) != BitMask)
+            do
             {
-                tuple.ZeroHighBits(textIndex + 1);
-            }
-
-            if (tuple.Any == 0)
-            {
-                if (parentSegmentCount == 0 || tuple.separator == 0)
+                if ((textIndex & BitMask) != BitMask)
                 {
-                    continueLength = (textIndex & BitMask) + 1;
-                    textIndex = loopLowerLimit - 1;
-                    Debug.Assert(continueLength >= 0);
-                    return continueLength;
+                    tuple.ZeroHighBits(textIndex + 1);
                 }
-                else
+
+                var any = tuple.Any;
+                if (any == 0)
                 {
-                    parentSegmentCount -= BitOperations.PopCount(BitSpan.ZeroHighBits(tuple.separator, textIndex));
-                    if (parentSegmentCount >= 0)
+                    if (parentSegmentCount == 0)
                     {
+                        continueLength = (textIndex & BitMask) + 1;
                         textIndex = loopLowerLimit - 1;
-                        return BitOperations.TrailingZeroCount(tuple.separator);
+                        Debug.Assert(continueLength >= 0);
+                        return continueLength;
                     }
                     else
                     {
-                        var tempSeparator = tuple.separator;
-                        for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator = BitSpan.ResetLowestSetBit(tempSeparator))
+                        parentSegmentCount -= BitOperations.PopCount(BitSpan.ZeroHighBits(tuple.separator, textIndex));
+                        if (parentSegmentCount >= 0)
                         {
+                            textIndex = loopLowerLimit - 1;
+                            return BitOperations.TrailingZeroCount(tuple.separator);
                         }
+                        else
+                        {
+                            var tempSeparator = tuple.separator;
+                            for (; parentSegmentCount < 0; ++parentSegmentCount, tempSeparator = BitSpan.ResetLowestSetBit(tempSeparator))
+                            {
+                            }
 
-                        textIndex = loopLowerLimit - 1;
-                        return BitOperations.TrailingZeroCount(tempSeparator);
+                            textIndex = loopLowerLimit - 1;
+                            return BitOperations.TrailingZeroCount(tempSeparator);
+                        }
                     }
                 }
-            }
-
-            do
-            {
-                if (BitSpan.GetBit(tuple.separator | tuple.parent | tuple.current, textIndex))
+                else if (BitSpan.GetBit(any, textIndex))
                 {
-                    if (BitSpan.GetBit(tuple.separator, textIndex))
+                    if (BitSpan.GetBit(tuple.separatorDuplicate, textIndex))
                     {
-                        var temp = BitSpan.ZeroHighBits(~tuple.separator, textIndex);
+                        var temp = BitSpan.ZeroHighBits(~tuple.separatorDuplicate, textIndex);
                         textIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
                     }
                     else if (BitSpan.GetBit(tuple.parent, textIndex))
@@ -667,28 +667,38 @@ public static partial class ReversePath
 
                     continue;
                 }
-
-                {
-                    var temp = BitSpan.ZeroHighBits(tuple.separator, textIndex);
-                    nextSeparatorIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
-                    length = textIndex - nextSeparatorIndex;
-                }
-                if (nextSeparatorIndex < loopLowerLimit)
-                {
-                    textIndex = nextSeparatorIndex;
-                    Debug.Assert(length >= 0, $"{nameof(length)}: {length} {nameof(textIndex)}: {textIndex}");
-                    return length;
-                }
                 else if (parentSegmentCount > 0)
                 {
-                    --parentSegmentCount;
+                    {
+                        var temp = BitSpan.ZeroHighBits(tuple.separator, textIndex);
+                        nextSeparatorIndex = loopUpperLimit - 1 - BitOperations.LeadingZeroCount(temp);
+                        length = textIndex - nextSeparatorIndex;
+                    }
+                    if (nextSeparatorIndex >= loopLowerLimit)
+                    {
+                        --parentSegmentCount;
+                        textIndex = nextSeparatorIndex - 1;
+                        continue;
+                    }
                 }
                 else
                 {
-                    segmentCharCount += AddOrUniteSegment(ref segmentRef, nextSeparatorIndex + 1, length, textIndex + 2);
+                    {
+                        var temp = BitSpan.ZeroHighBits(any, textIndex);
+                        nextSeparatorIndex = loopUpperLimit - BitOperations.LeadingZeroCount(temp);
+                        length = textIndex - nextSeparatorIndex;
+                    }
+                    if (nextSeparatorIndex >= loopLowerLimit)
+                    {
+                        segmentCharCount += AddOrUniteSegment(ref segmentRef, nextSeparatorIndex + 1, length, textIndex + 2);
+                        textIndex = nextSeparatorIndex - 1;
+                        continue;
+                    }
                 }
 
-                textIndex = nextSeparatorIndex - 1;
+                textIndex = nextSeparatorIndex;
+                Debug.Assert(length >= 0, $"{nameof(length)}: {length} {nameof(textIndex)}: {textIndex}");
+                return length;
             }
             while (textIndex >= loopLowerLimit);
             return 0;
