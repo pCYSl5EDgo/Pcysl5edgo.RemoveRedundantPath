@@ -49,6 +49,24 @@ public class RelativePathBenchmarks
     }
 
     [Benchmark]
+    public string ReverseSimd32Rough()
+    {
+        return ReversePath.RemoveRedundantSegmentsRoughUnix(Source, ReversePath.Kind.Simd32);
+    }
+
+    [Benchmark]
+    public string ReverseSimd64Rough()
+    {
+        return ReversePath.RemoveRedundantSegmentsRoughUnix(Source, ReversePath.Kind.Simd64);
+    }
+
+    [Benchmark]
+    public string ReverseEachRough()
+    {
+        return ReversePath.RemoveRedundantSegmentsRoughUnix(Source, ReversePath.Kind.Each);
+    }
+
+    [Benchmark]
     public string AllocOnce()
     {
         return ReversePath.RemoveRedundantSegmentsUnixAllocOnce(Source);

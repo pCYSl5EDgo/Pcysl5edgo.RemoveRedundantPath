@@ -8,11 +8,10 @@ namespace Pcysl5edgo.RedundantPath;
 
 public static partial class ReversePath
 {
-    private ref struct UnixInfo : IDisposable
+    private ref struct RoughUnixInfo
     {
         private readonly ReadOnlySpan<char> textSpan;
         private Span<(int Offset, int Length)> segmentSpan;
-        private long[]? rentalArray;
         private int segmentCount;
         private readonly bool startsWithSeparator;
         private readonly bool endsWithSeparator;
@@ -21,7 +20,7 @@ public static partial class ReversePath
         private readonly ref (int Offset, int Length) LastSegment => ref segmentSpan[segmentCount - 1];
         public readonly bool IsSlashOnly => startsWithSeparator && segmentCount == 0;
 
-        public UnixInfo(ReadOnlySpan<char> textSpan, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSepartor)
+        public RoughUnixInfo(ReadOnlySpan<char> textSpan, Span<ValueTuple<int, int>> segmentSpan, bool startsWithSeparator, bool endsWithSepartor)
         {
             this.textSpan = textSpan;
             this.segmentSpan = segmentSpan;
@@ -34,32 +33,7 @@ public static partial class ReversePath
 
         private void AddSegment(int offset, int length)
         {
-            if (++segmentCount > segmentSpan.Length)
-            {
-                EnsureStackCapacity();
-            }
-
-            segmentSpan[segmentCount - 1] = new(offset, length);
-        }
-
-        private void EnsureStackCapacity()
-        {
-            if (rentalArray is null)
-            {
-                rentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
-                var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(rentalArray.AsSpan());
-                segmentSpan.CopyTo(temp);
-                segmentSpan = temp;
-            }
-            else
-            {
-                var tempRentalArray = ArrayPool<long>.Shared.Rent((int)BitOperations.RoundUpToPowerOf2((uint)segmentCount));
-                var temp = MemoryMarshal.Cast<long, ValueTuple<int, int>>(tempRentalArray.AsSpan());
-                segmentSpan.CopyTo(temp);
-                ArrayPool<long>.Shared.Return(rentalArray);
-                rentalArray = tempRentalArray;
-                segmentSpan = temp;
-            }
+            segmentSpan[segmentCount++] = new(offset, length);
         }
 
         private int AddOrUniteSegment(int offset, int length, int expectedOffset)
@@ -78,15 +52,6 @@ public static partial class ReversePath
 
             AddSegment(offset, length);
             return length;
-        }
-
-        public void Dispose()
-        {
-            if (rentalArray is not null)
-            {
-                ArrayPool<long>.Shared.Return(rentalArray);
-                rentalArray = default;
-            }
         }
 
         // a/./a
@@ -830,7 +795,7 @@ public static partial class ReversePath
             Debug.Assert(destination.IsEmpty);
         }
 
-        public static void Create(Span<char> span, UnixInfo arg) => arg.Write(ref MemoryMarshal.GetReference(span));
+        public static void Create(Span<char> span, RoughUnixInfo arg) => arg.Write(ref MemoryMarshal.GetReference(span));
 
         private readonly nuint WriteParentSegments(ref char destination)
         {
