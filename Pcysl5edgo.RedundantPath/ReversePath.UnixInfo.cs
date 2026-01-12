@@ -257,6 +257,7 @@ public static partial class ReversePath
             separatorDuplicate = separator & separatorWall;
             if ((current | parent | separatorDuplicate) == 0)
             {
+                AddSegment(0, textSpan.Length);
                 return textSpan.Length + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
             }
 
@@ -343,6 +344,7 @@ public static partial class ReversePath
             separatorDuplicate = separator & separatorWall;
             if ((current | parent | separatorDuplicate) == 0)
             {
+                AddSegment(0, textSpan.Length);
                 return textSpan.Length + (startsWithSeparator ? 1 : 0) + (endsWithSeparator ? 1 : 0);
             }
 
